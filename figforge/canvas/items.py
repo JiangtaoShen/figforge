@@ -524,7 +524,7 @@ class LabelItem(BaseItem):
     # ---- export ----------------------------------------------------------
     def render_to_pdf(self, page, fontreg, keep_open):
         x, y, w, h = self.get_geometry()
-        rf = fonts.resolve_export_font(self.family, self.bold, self.italic)
+        rf = fonts.resolve_export_font(self.family, self.bold, self.italic, self.text)
         fontname = fontreg.ensure(page, rf)
         ff = fitz.Font(fontfile=rf.fontfile) if rf.fontfile else fitz.Font(fontname=rf.fontname)
         fs = self.size_pt
@@ -648,7 +648,7 @@ class TextBoxItem(BaseItem):
             d = self.border_width / 2
             ip.draw_rect(fitz.Rect(d, d, w - d, h - d),
                          color=_rgb(self.border_color), width=self.border_width)
-        rf = fonts.resolve_export_font(self.family, self.bold, self.italic)
+        rf = fonts.resolve_export_font(self.family, self.bold, self.italic, self.text)
         inner = fitz.Rect(self.PAD, self.PAD, w - self.PAD, h - self.PAD)
         align = {"left": 0, "center": 1, "right": 2}[self.align]
         ip.insert_textbox(inner, self.text, fontname=rf.fontname,

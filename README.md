@@ -33,9 +33,10 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
   toggle); rotate (drag the rotation handle — Shift for 15° steps, snaps to 0/90/180/270 — or type
   an exact angle); crop (visual box with rule-of-thirds); enter exact millimetre values in the
   properties panel; smart-guide snapping + optional grid; align / distribute; z-order; duplicate.
-- **Labels / text**: add text labels by hand with common fonts (Arial, Times New Roman, Calibri…),
-  size, bold / italic, colour, alignment; double-click for multi-line editing.
-  **No auto-numbering — fully under your control.**
+- **Labels / text**: add text labels by hand with common fonts including Chinese
+  (Arial, Times New Roman, Calibri, Microsoft YaHei, SimSun…), size, bold / italic, colour,
+  alignment; double-click for multi-line editing. Chinese text automatically uses a Chinese
+  font on export. **No auto-numbering — fully under your control.**
 - **Annotations**: **text boxes** (wrapping text frame, optional border and fill with adjustable
   **background opacity**, rotatable) and **lines / arrows** (solid or dashed, end or both-end
   arrowheads). Line endpoints **snap to text-box / object nodes and stay attached** — move the box

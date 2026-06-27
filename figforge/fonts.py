@@ -25,7 +25,35 @@ _WIN_FONT_FILES = {
     "Segoe UI":         ("segoeui.ttf", "segoeuib.ttf", "segoeuii.ttf", "segoeuiz.ttf"),
     "Consolas":         ("consola.ttf", "consolab.ttf", "consolai.ttf", "consolaz.ttf"),
     "Arial Narrow":     ("arialn.ttf", "arialnb.ttf", "arialni.ttf", "arialnbi.ttf"),
+    # Chinese families (cover CJK + Latin)
+    "Microsoft YaHei":  ("msyh.ttc", "msyhbd.ttc", "msyh.ttc", "msyhbd.ttc"),
+    "SimSun":           ("simsun.ttc", "simsun.ttc", "simsun.ttc", "simsun.ttc"),
+    "SimHei":           ("simhei.ttf", "simhei.ttf", "simhei.ttf", "simhei.ttf"),
+    "KaiTi":            ("simkai.ttf", "simkai.ttf", "simkai.ttf", "simkai.ttf"),
 }
+
+# Fallback CJK fonts used on export when the chosen Latin font lacks glyphs.
+_CJK_REGULAR = ("msyh.ttc", "simhei.ttf", "simsun.ttc", "Deng.ttf", "simkai.ttf")
+_CJK_BOLD = ("msyhbd.ttc", "simhei.ttf", "simsun.ttc")
+_CJK_FAMILIES = {"Microsoft YaHei", "SimSun", "SimHei", "KaiTi"}
+
+
+def _has_cjk(text: str) -> bool:
+    for ch in text:
+        o = ord(ch)
+        if (0x3000 <= o <= 0x30ff or 0x3400 <= o <= 0x4dbf
+                or 0x4e00 <= o <= 0x9fff or 0xac00 <= o <= 0xd7af
+                or 0xf900 <= o <= 0xfaff or 0xff00 <= o <= 0xffef):
+            return True
+    return False
+
+
+def _cjk_fontfile(bold: bool):
+    for n in (_CJK_BOLD if bold else ()) + _CJK_REGULAR:
+        p = os.path.join(_FONTDIR, n)
+        if os.path.isfile(p):
+            return p
+    return None
 
 # PDF base-14 fallbacks: family -> (regular, bold, italic, bold_italic)
 _BASE14 = {
@@ -63,8 +91,17 @@ class ResolvedFont:
     fontfile: str | None     # path to embed, or None for a base-14 builtin
 
 
-def resolve_export_font(family: str, bold: bool, italic: bool) -> ResolvedFont:
-    """Pick a TTF to embed (preferred) or a base-14 builtin fallback."""
+def resolve_export_font(family: str, bold: bool, italic: bool,
+                        text: str = "") -> ResolvedFont:
+    """Pick a TTF to embed (preferred) or a base-14 builtin fallback.
+
+    If `text` contains CJK characters, fall back to a Chinese font so the
+    glyphs actually render (base-14 / Latin TTFs export them blank).
+    """
+    if text and family not in _CJK_FAMILIES and _has_cjk(text):
+        cjk = _cjk_fontfile(bold)
+        if cjk:
+            return ResolvedFont(fontname="FCJK" + ("B" if bold else ""), fontfile=cjk)
     idx = _style_index(bold, italic)
     files = _WIN_FONT_FILES.get(family)
     if files:
