@@ -158,6 +158,23 @@ def _crop(p, color):
     _line(p, 42, 42, 42, 17)
 
 
+def _line_glyph(p, color):
+    _line(p, 16, 47, 48, 17)
+    p.save()
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(color)
+    p.drawEllipse(QPointF(16, 47), 4, 4)
+    p.drawEllipse(QPointF(48, 17), 4, 4)
+    p.restore()
+
+
+def _textbox(p, color):
+    p.drawRoundedRect(QRectF(12, 16, 40, 32), 3, 3)
+    _line(p, 19, 27, 45, 27)
+    _line(p, 19, 34, 45, 34)
+    _line(p, 19, 41, 37, 41)
+
+
 def _export(p, color, tag):
     _line(p, 14, 40, 14, 50)
     _line(p, 14, 50, 50, 50)
@@ -176,7 +193,7 @@ def _export_png(p, color):
 
 
 _DRAW = {
-    "import": _import, "text": _text,
+    "import": _import, "text": _text, "textbox": _textbox, "line": _line_glyph,
     "align_left": _align_left, "align_hcenter": _align_hcenter,
     "align_right": _align_right, "align_top": _align_top,
     "align_vmiddle": _align_vmiddle, "align_bottom": _align_bottom,

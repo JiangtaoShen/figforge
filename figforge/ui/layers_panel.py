@@ -40,8 +40,10 @@ class LayersPanel(QtWidgets.QWidget):
     def refresh(self):
         self._syncing = True
         self.list.clear()
+        prefixes = {"FigureItem": "🖼 ", "TextBoxItem": "▭ ",
+                    "LineItem": "／ ", "LabelItem": "T "}
         for it in reversed(self.main.scene.iter_items()):   # top layer first
-            label = ("🖼 " if isinstance(it, FigureItem) else "T ") + it.name()
+            label = prefixes.get(type(it).__name__, "• ") + it.name()
             row = QtWidgets.QListWidgetItem(label)
             row.setData(QtCore.Qt.ItemDataRole.UserRole, it)
             row.setSelected(it.isSelected())

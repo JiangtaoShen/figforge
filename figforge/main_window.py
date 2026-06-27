@@ -8,7 +8,8 @@ from PySide6.QtCore import Qt
 
 from . import constants, fonts
 from .icons import build_icons
-from .canvas.items import FigureItem, LabelItem
+from .canvas.items import (BaseItem, FigureItem, LabelItem, LineItem,
+                           TextBoxItem)
 from .canvas.scene import PageScene
 from .canvas.view import CanvasView
 from .commands import AddItemCommand, DeleteItemsCommand, FuncCommand
@@ -65,6 +66,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._suspend = False
         self._fig_count = 0
         self._label_count = 0
+        self._tb_count = 0
+        self._line_count = 0
 
         self._build_docks()
         self._build_actions()
@@ -135,6 +138,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.a_duplicate = self._act("复制副本", self.duplicate_selected, "Ctrl+D")
 
         self.a_add_label = self._act("添加文字标签", self.add_label, "T")
+        self.a_add_textbox = self._act("添加文本框", self.add_textbox)
+        self.a_add_line = self._act("添加线条", self.add_line)
         self.a_crop = self._act("裁剪图片…", self.crop_selected, "C")
         self.a_rot_l = self._act("向左旋转 90°", lambda: self.rotate_selected(-90))
         self.a_rot_r = self._act("向右旋转 90°", lambda: self.rotate_selected(90))
@@ -163,6 +168,7 @@ class MainWindow(QtWidgets.QMainWindow):
         ic = build_icons(self.palette().color(QtGui.QPalette.ColorRole.WindowText))
         for act, key in (
             (self.a_import, "import"), (self.a_add_label, "text"),
+            (self.a_add_textbox, "textbox"), (self.a_add_line, "line"),
             (self.a_crop, "crop"),
             (self.a_rot_l, "rotate_left"), (self.a_rot_r, "rotate_right"),
             (self.a_al_left, "align_left"), (self.a_al_hc, "align_hcenter"),
@@ -192,6 +198,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         m = mb.addMenu("对象")
         m.addAction(self.a_add_label)
+        m.addAction(self.a_add_textbox)
+        m.addAction(self.a_add_line)
         m.addAction(self.a_crop)
         m.addSeparator()
         sub = m.addMenu("对齐")
@@ -218,6 +226,8 @@ class MainWindow(QtWidgets.QMainWindow):
         tb.setIconSize(QtCore.QSize(22, 22))
         tb.addAction(self.a_import)
         tb.addAction(self.a_add_label)
+        tb.addAction(self.a_add_textbox)
+        tb.addAction(self.a_add_line)
         tb.addSeparator()
         tb.addActions([self.a_al_left, self.a_al_hc, self.a_al_right,
                        self.a_al_top, self.a_al_vm, self.a_al_bottom])
@@ -274,8 +284,8 @@ class MainWindow(QtWidgets.QMainWindow):
         return "Arial" if "Arial" in fams else fams[0]
 
     def _register_new_item(self, item):
-        if isinstance(item, LabelItem):
-            item.editRequested.connect(self.edit_label)
+        if isinstance(item, (LabelItem, TextBoxItem)):
+            item.editRequested.connect(self.edit_text)
 
     def _selected(self):
         return [it for it in self.scene.iter_items() if it.isSelected()]
@@ -357,7 +367,30 @@ class MainWindow(QtWidgets.QMainWindow):
         self._push(AddItemCommand(self.scene, item))
         self._select_only([item])
 
-    def edit_label(self, item: LabelItem):
+    def add_textbox(self):
+        self._tb_count += 1
+        item = TextBoxItem(text="文本框", family=self._default_label_font())
+        item.set_name(f"文本框 {self._tb_count}")
+        center = self.view.mapToScene(self.view.viewport().rect().center())
+        w, h = item.size()
+        item.setZValue(self.scene.next_z())
+        item.set_geometry(center.x() - w / 2, center.y() - h / 2, w, h)
+        self._register_new_item(item)
+        self._push(AddItemCommand(self.scene, item))
+        self._select_only([item])
+
+    def add_line(self):
+        self._line_count += 1
+        item = LineItem()
+        item.set_name(f"线条 {self._line_count}")
+        center = self.view.mapToScene(self.view.viewport().rect().center())
+        item.setZValue(self.scene.next_z())
+        item.setPos(center.x() - 60, center.y())
+        self._register_new_item(item)
+        self._push(AddItemCommand(self.scene, item))
+        self._select_only([item])
+
+    def edit_text(self, item):
         text, ok = QtWidgets.QInputDialog.getMultiLineText(
             self, "编辑文字", "内容：", item.text)
         if not ok:
@@ -369,7 +402,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # --------------------------------------------------------- rotate / crop
     def _rotate_to(self, target_fn, text):
-        figs = [it for it in self._selected() if isinstance(it, FigureItem)]
+        figs = [it for it in self._selected()
+                if isinstance(it, (FigureItem, TextBoxItem))]
         if not figs:
             return
         self.undo_stack.beginMacro(text)
@@ -420,31 +454,63 @@ class MainWindow(QtWidgets.QMainWindow):
         items = self._selected()
         if not items:
             return
+        off = constants.mm_to_pt(4)
         dups = []
         self.undo_stack.beginMacro("复制副本")
         for it in items:
-            x, y, w, h = it.get_geometry()
-            off = constants.mm_to_pt(4)
-            if isinstance(it, FigureItem):
-                src = importers.load_source(it._source_path, it._page_index)
-                self._fig_count += 1
-                dup = FigureItem(src, name=f"图片 {self._fig_count}")
-                dup.aspect_locked = it.aspect_locked
-            else:
-                self._label_count += 1
-                dup = LabelItem(text=it.text, family=it.family, size_pt=it.size_pt,
-                                bold=it.bold, italic=it.italic,
-                                color=QtGui.QColor(it.color))
-                dup.align = it.align
-                dup._recompute()
-                dup.set_name(f"标签 {self._label_count}")
+            dup = self._clone_item(it)
+            if dup is None:
+                continue
             dup.setZValue(self.scene.next_z())
-            dup.set_geometry(x + off, y + off, w, h)
+            if isinstance(it, LineItem):
+                dup.setPos(it.pos().x() + off, it.pos().y() + off)
+            else:
+                x, y, w, h = it.get_geometry()
+                dup.set_state((x + off, y + off, w, h, it.rotation()))
             self._register_new_item(dup)
             self._push(AddItemCommand(self.scene, dup))
             dups.append(dup)
         self.undo_stack.endMacro()
-        self._select_only(dups)
+        if dups:
+            self._select_only(dups)
+
+    def _clone_item(self, it):
+        if isinstance(it, FigureItem):
+            self._fig_count += 1
+            dup = FigureItem(importers.load_source(it._source_path, it._page_index),
+                             name=f"图片 {self._fig_count}")
+            dup.aspect_locked = it.aspect_locked
+            dup.crop = it.crop
+            return dup
+        if isinstance(it, TextBoxItem):
+            self._tb_count += 1
+            dup = TextBoxItem(text=it.text, family=it.family, size_pt=it.size_pt,
+                              bold=it.bold, italic=it.italic,
+                              color=QtGui.QColor(it.color))
+            dup.align = it.align
+            dup.border, dup.border_width = it.border, it.border_width
+            dup.border_color = QtGui.QColor(it.border_color)
+            dup.fill = it.fill
+            dup.fill_color = QtGui.QColor(it.fill_color)
+            dup.set_name(f"文本框 {self._tb_count}")
+            return dup
+        if isinstance(it, LineItem):
+            self._line_count += 1
+            dup = LineItem(p1=QtCore.QPointF(it.p1), p2=QtCore.QPointF(it.p2),
+                           color=QtGui.QColor(it.color), width_pt=it.width_pt,
+                           dashed=it.dashed, arrow=it.arrow)
+            dup.set_name(f"线条 {self._line_count}")
+            return dup
+        if isinstance(it, LabelItem):
+            self._label_count += 1
+            dup = LabelItem(text=it.text, family=it.family, size_pt=it.size_pt,
+                            bold=it.bold, italic=it.italic,
+                            color=QtGui.QColor(it.color))
+            dup.align = it.align
+            dup._recompute()
+            dup.set_name(f"标签 {self._label_count}")
+            return dup
+        return None
 
     def change_z(self, mode):
         sel = self._selected()
@@ -484,7 +550,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # -------------------------------------------------------- align/distribute
     def _with_geometry_undo(self, text, mutate):
-        items = self._selected()
+        items = [it for it in self._selected() if isinstance(it, BaseItem)]
         if not items:
             return
         old = {it: it.get_geometry() for it in items}
@@ -608,7 +674,7 @@ class MainWindow(QtWidgets.QMainWindow):
         project.cleanup_tempdir(self._tempdir)
         self._tempdir = None
         self.current_path = None
-        self._fig_count = self._label_count = 0
+        self._fig_count = self._label_count = self._tb_count = self._line_count = 0
         self.undo_stack.clear()
         self.undo_stack.setClean()
         self._extra_dirty = False
@@ -652,6 +718,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.current_path = path
         self._fig_count = sum(1 for it in items if isinstance(it, FigureItem))
         self._label_count = sum(1 for it in items if isinstance(it, LabelItem))
+        self._tb_count = sum(1 for it in items if isinstance(it, TextBoxItem))
+        self._line_count = sum(1 for it in items if isinstance(it, LineItem))
         self.undo_stack.clear()
         self.undo_stack.setClean()
         self._extra_dirty = False

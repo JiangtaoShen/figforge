@@ -36,6 +36,9 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
 - **Labels / text**: add text labels by hand with common fonts (Arial, Times New Roman, Calibri…),
   size, bold / italic, colour, alignment; double-click for multi-line editing.
   **No auto-numbering — fully under your control.**
+- **Annotations**: **text boxes** (a wrapping text frame with optional border / fill, rotatable)
+  and **lines / arrows** (solid or dashed, end or both-end arrowheads, draggable endpoints).
+  Both export as vectors.
 - **Export**:
   - **PDF** — vectors preserved, best for printing.
   - **PNG** — 150 / 300 / 600 / 1200 DPI, optional transparent background.
@@ -79,7 +82,7 @@ figforge/
     exporters.py      export PDF (vector) / PNG / TIFF (one source of truth)
     project.py        .ffp project load/save (ZIP-bundled assets)
   canvas/
-    items.py          figure / label items (move, resize, rotate, crop, export)
+    items.py          figure / label / text-box / line items (move, resize, rotate, crop, export)
     scene.py          page, grid, smart-guide snapping
     view.py           zoom / pan / drag-and-drop
   ui/

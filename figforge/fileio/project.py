@@ -13,7 +13,7 @@ import tempfile
 import zipfile
 
 from .. import constants
-from ..canvas.items import FigureItem, LabelItem
+from ..canvas.items import FigureItem, LabelItem, LineItem, TextBoxItem
 
 
 def save_project(path: str, scene) -> None:
@@ -57,12 +57,17 @@ def load_project(path: str):
 
     items = []
     for d in manifest.get("items", []):
-        if d.get("type") == "figure":
+        kind = d.get("type")
+        if kind == "figure":
             asset_path = os.path.join(tempdir, "assets", d.get("asset", ""))
             item = FigureItem.from_dict(d, asset_path)
             item._asset_name = d.get("asset")
-        elif d.get("type") == "label":
+        elif kind == "label":
             item = LabelItem.from_dict(d)
+        elif kind == "textbox":
+            item = TextBoxItem.from_dict(d)
+        elif kind == "line":
+            item = LineItem.from_dict(d)
         else:
             continue
         items.append(item)

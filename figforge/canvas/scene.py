@@ -6,7 +6,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 
 from .. import constants
 from ..commands import FuncCommand, GeometryCommand
-from .items import BaseItem
+from .items import BaseItem, CanvasItem
 
 _DESK = QtGui.QColor(74, 76, 82)
 _PAGE = QtGui.QColor("white")
@@ -63,8 +63,8 @@ class PageScene(QtWidgets.QGraphicsScene):
             self.removeItem(item)
         self.sceneEdited.emit()
 
-    def iter_items(self) -> list[BaseItem]:
-        items = [it for it in self.items() if isinstance(it, BaseItem)]
+    def iter_items(self) -> list[CanvasItem]:
+        items = [it for it in self.items() if isinstance(it, CanvasItem)]
         items.sort(key=lambda it: it.zValue())
         return items
 

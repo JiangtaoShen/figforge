@@ -50,22 +50,54 @@ _SEL_COLOR = QtGui.QColor(40, 120, 235)
 EXPORT_ROT_SIGN = -1
 
 
-class BaseItem(QtWidgets.QGraphicsObject):
-    """Common selection / move / resize / rotate behaviour."""
+def _rgb(c: QtGui.QColor):
+    return (c.red() / 255, c.green() / 255, c.blue() / 255)
+
+
+def _place(page, src, x, y, w, h, angle):
+    """Show single-page PDF `src` at (x,y,w,h) on `page`, rotated about centre."""
+    if abs(angle) < 1e-6:
+        page.show_pdf_page(fitz.Rect(x, y, x + w, y + h), src, 0,
+                           keep_proportion=False)
+        return
+    ang = round(angle)
+    th = math.radians(ang)
+    c, s = abs(math.cos(th)), abs(math.sin(th))
+    ew, eh = w * c + h * s, w * s + h * c          # rotated bounding box
+    cx, cy = x + w / 2, y + h / 2
+    page.show_pdf_page(fitz.Rect(cx - ew / 2, cy - eh / 2, cx + ew / 2, cy + eh / 2),
+                       src, 0, rotate=int(EXPORT_ROT_SIGN * ang) % 360)
+
+
+class CanvasItem(QtWidgets.QGraphicsObject):
+    """Base for every selectable page object (rectangular items and lines)."""
 
     geometryChanged = Signal()
+
+    def __init__(self):
+        super().__init__()
+        self._name = "Item"
+        self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+        self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
+        self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
+        self.setAcceptHoverEvents(True)
+
+    def name(self):
+        return self._name
+
+    def set_name(self, name):
+        self._name = name
+
+
+class BaseItem(CanvasItem):
+    """Common selection / move / resize / rotate behaviour for rect items."""
 
     def __init__(self, resizable: bool = True):
         super().__init__()
         self._w = 100.0
         self._h = 100.0
-        self._name = "Item"
         self.aspect_locked = True
         self.resizable = resizable
-        self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
-        self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
-        self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
-        self.setAcceptHoverEvents(True)
         self._resizing: str | None = None
         self._rotating = False
         self._resize_w0 = self._resize_h0 = 0.0
@@ -404,17 +436,7 @@ class FigureItem(BaseItem):
         keep_open.append(inter)
 
         # (c) place onto the target page, rotating about the centre.
-        if abs(angle) < 1e-6:
-            page.show_pdf_page(fitz.Rect(x, y, x + w, y + h), inter, 0,
-                               keep_proportion=False)
-        else:
-            ang = round(angle)
-            th = math.radians(ang)
-            c, s = abs(math.cos(th)), abs(math.sin(th))
-            ew, eh = w * c + h * s, w * s + h * c   # rotated bounding box
-            cx, cy = x + w / 2, y + h / 2
-            rect = fitz.Rect(cx - ew / 2, cy - eh / 2, cx + ew / 2, cy + eh / 2)
-            page.show_pdf_page(rect, inter, 0, rotate=int(EXPORT_ROT_SIGN * ang) % 360)
+        _place(page, inter, x, y, w, h, angle)
 
     def to_dict(self):
         d = self.base_dict()
@@ -529,4 +551,318 @@ class LabelItem(BaseItem):
         item.align = d.get("align", "left")
         item._recompute()
         item.apply_base_dict(d)
+        return item
+
+
+class TextBoxItem(BaseItem):
+    """A resizable text frame: wrapped text with optional border / fill."""
+
+    editRequested = Signal(object)
+    PAD = 4.0
+
+    def __init__(self, text="文本框", family="Arial", size_pt=11.0,
+                 bold=False, italic=False, color=None, w=170.0, h=90.0):
+        super().__init__(resizable=True)
+        self._name = "文本框"
+        self.aspect_locked = False
+        self.text = text
+        self.family = family
+        self.size_pt = size_pt
+        self.bold = bold
+        self.italic = italic
+        self.color = color or QtGui.QColor("black")
+        self.align = "left"
+        self.border = True
+        self.border_color = QtGui.QColor(70, 70, 70)
+        self.border_width = 1.0
+        self.fill = False
+        self.fill_color = QtGui.QColor("white")
+        self._w, self._h = w, h
+
+    def font(self):
+        f = QtGui.QFont(self.family)
+        f.setPointSizeF(self.size_pt)
+        f.setBold(self.bold)
+        f.setItalic(self.italic)
+        return f
+
+    def _qalign(self):
+        return {"left": Qt.AlignmentFlag.AlignLeft,
+                "center": Qt.AlignmentFlag.AlignHCenter,
+                "right": Qt.AlignmentFlag.AlignRight}[self.align]
+
+    def paint_content(self, painter):
+        rect = QRectF(0, 0, self._w, self._h)
+        if self.fill:
+            painter.fillRect(rect, self.fill_color)
+        if self.border and self.border_width > 0:
+            painter.setPen(QtGui.QPen(self.border_color, self.border_width))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            d = self.border_width / 2
+            painter.drawRect(rect.adjusted(d, d, -d, -d))
+        painter.setFont(self.font())
+        painter.setPen(QtGui.QPen(self.color))
+        inner = rect.adjusted(self.PAD, self.PAD, -self.PAD, -self.PAD)
+        painter.drawText(inner, int(self._qalign() | Qt.AlignmentFlag.AlignTop
+                                    | Qt.TextFlag.TextWordWrap), self.text)
+
+    def set_text(self, text):
+        self.text = text
+        self.update()
+        self.geometryChanged.emit()
+
+    def apply_style(self, **kw):
+        for k in ("text", "family", "size_pt", "bold", "italic", "color",
+                  "align", "border", "border_color", "border_width",
+                  "fill", "fill_color"):
+            if k in kw and kw[k] is not None:
+                setattr(self, k, kw[k])
+        self.update()
+        self.geometryChanged.emit()
+
+    def mouseDoubleClickEvent(self, event):
+        self.editRequested.emit(self)
+        event.accept()
+
+    def render_to_pdf(self, page, fontreg, keep_open):
+        x, y, w, h = self.get_geometry()
+        inter = fitz.open()
+        ip = inter.new_page(width=w, height=h)
+        keep_open.append(inter)
+        if self.fill:
+            ip.draw_rect(fitz.Rect(0, 0, w, h), color=None, fill=_rgb(self.fill_color))
+        if self.border and self.border_width > 0:
+            d = self.border_width / 2
+            ip.draw_rect(fitz.Rect(d, d, w - d, h - d),
+                         color=_rgb(self.border_color), width=self.border_width)
+        rf = fonts.resolve_export_font(self.family, self.bold, self.italic)
+        inner = fitz.Rect(self.PAD, self.PAD, w - self.PAD, h - self.PAD)
+        align = {"left": 0, "center": 1, "right": 2}[self.align]
+        ip.insert_textbox(inner, self.text, fontname=rf.fontname,
+                          fontfile=rf.fontfile, fontsize=self.size_pt,
+                          color=_rgb(self.color), align=align)
+        _place(page, inter, x, y, w, h, self.rotation())
+
+    def to_dict(self):
+        d = self.base_dict()
+        d.update({"type": "textbox", "text": self.text, "family": self.family,
+                  "size_pt": self.size_pt, "bold": self.bold, "italic": self.italic,
+                  "color": self.color.name(), "align": self.align,
+                  "border": self.border, "border_color": self.border_color.name(),
+                  "border_width": self.border_width, "fill": self.fill,
+                  "fill_color": self.fill_color.name()})
+        return d
+
+    @classmethod
+    def from_dict(cls, d):
+        item = cls(text=d.get("text", ""), family=d.get("family", "Arial"),
+                   size_pt=d.get("size_pt", 11.0), bold=d.get("bold", False),
+                   italic=d.get("italic", False),
+                   color=QtGui.QColor(d.get("color", "#000000")))
+        item.align = d.get("align", "left")
+        item.border = d.get("border", True)
+        item.border_color = QtGui.QColor(d.get("border_color", "#464646"))
+        item.border_width = d.get("border_width", 1.0)
+        item.fill = d.get("fill", False)
+        item.fill_color = QtGui.QColor(d.get("fill_color", "#ffffff"))
+        item.apply_base_dict(d)
+        return item
+
+
+class LineItem(CanvasItem):
+    """A straight line / arrow annotation with draggable endpoints."""
+
+    def __init__(self, p1=None, p2=None, color=None, width_pt=2.0,
+                 dashed=False, arrow="none"):
+        super().__init__()
+        self._name = "线条"
+        self.p1 = p1 if p1 is not None else QPointF(0, 0)
+        self.p2 = p2 if p2 is not None else QPointF(120, 0)
+        self.color = color or QtGui.QColor(40, 40, 40)
+        self.width_pt = width_pt
+        self.dashed = dashed
+        self.arrow = arrow                       # 'none' | 'end' | 'both'
+        self._drag = None
+        self._state_at_press = None
+
+    def _eff_scale(self):
+        sc = self.scene()
+        if sc and sc.views():
+            m = sc.views()[0].transform().m11()
+            if m > 0:
+                return max(0.4, min(m, 4.0))
+        return 1.0
+
+    def _hs(self):
+        return constants.HANDLE_PX / self._eff_scale()
+
+    def boundingRect(self):
+        r = QRectF(self.p1, self.p2).normalized()
+        m = _PAD + self.width_pt
+        return r.adjusted(-m, -m, m, m)
+
+    def shape(self):
+        path = QtGui.QPainterPath()
+        path.moveTo(self.p1)
+        path.lineTo(self.p2)
+        stroker = QtGui.QPainterPathStroker()
+        stroker.setWidth(max(self.width_pt, 10.0 / self._eff_scale()))
+        out = stroker.createStroke(path)
+        if self.isSelected():
+            hs = self._hs()
+            for pt in (self.p1, self.p2):
+                out.addRect(QRectF(pt.x() - hs / 2, pt.y() - hs / 2, hs, hs))
+        return out
+
+    def _handle_at(self, pos):
+        hs = self._hs() * 1.4
+        for name, pt in (("p1", self.p1), ("p2", self.p2)):
+            if QRectF(pt.x() - hs / 2, pt.y() - hs / 2, hs, hs).contains(pos):
+                return name
+        return None
+
+    def _arrow_poly(self, tip, frm):
+        dx, dy = tip.x() - frm.x(), tip.y() - frm.y()
+        n = math.hypot(dx, dy) or 1.0
+        dx, dy = dx / n, dy / n
+        L = 4.0 + 3.0 * self.width_pt
+        W = L * 0.55
+        bx, by = tip.x() - dx * L, tip.y() - dy * L
+        px, py = -dy, dx
+        return QtGui.QPolygonF([
+            QPointF(tip.x(), tip.y()),
+            QPointF(bx + px * W, by + py * W),
+            QPointF(bx - px * W, by - py * W)])
+
+    def _fill_poly(self, painter, poly):
+        painter.save()
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(self.color)
+        painter.drawPolygon(poly)
+        painter.restore()
+
+    def paint(self, painter, option, widget=None):
+        pen = QtGui.QPen(self.color, self.width_pt)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        if self.dashed:
+            pen.setStyle(Qt.PenStyle.DashLine)
+        painter.setPen(pen)
+        painter.drawLine(self.p1, self.p2)
+        if self.arrow in ("end", "both"):
+            self._fill_poly(painter, self._arrow_poly(self.p2, self.p1))
+        if self.arrow == "both":
+            self._fill_poly(painter, self._arrow_poly(self.p1, self.p2))
+        if self.isSelected():
+            painter.setPen(QtGui.QPen(_SEL_COLOR, 1.0 / self._eff_scale()))
+            painter.setBrush(QtGui.QColor("white"))
+            hs = self._hs()
+            for pt in (self.p1, self.p2):
+                painter.drawRect(QRectF(pt.x() - hs / 2, pt.y() - hs / 2, hs, hs))
+
+    def mousePressEvent(self, event):
+        self._state_at_press = self.get_state()
+        if self.isSelected() and event.button() == Qt.MouseButton.LeftButton:
+            h = self._handle_at(event.pos())
+            if h:
+                self._drag = h
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._drag:
+            self.prepareGeometryChange()
+            if self._drag == "p1":
+                self.p1 = event.pos()
+            else:
+                self.p2 = event.pos()
+            self.update()
+            self.geometryChanged.emit()
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        was = self._drag
+        self._drag = None
+        if not was:
+            super().mouseReleaseEvent(event)
+        else:
+            event.accept()
+        sc = self.scene()
+        if self._state_at_press is not None and sc and hasattr(sc, "push_state_undo"):
+            new = self.get_state()
+            if new != self._state_at_press:
+                sc.push_state_undo(self, self._state_at_press, new)
+        self._state_at_press = None
+
+    def hoverMoveEvent(self, event):
+        if self.isSelected() and self._handle_at(event.pos()):
+            self.setCursor(Qt.CursorShape.CrossCursor)
+        else:
+            self.setCursor(Qt.CursorShape.SizeAllCursor)
+        super().hoverMoveEvent(event)
+
+    def itemChange(self, change, value):
+        if change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
+            self.geometryChanged.emit()
+        return super().itemChange(change, value)
+
+    def get_state(self):
+        return (self.pos().x(), self.pos().y(),
+                self.p1.x(), self.p1.y(), self.p2.x(), self.p2.y())
+
+    def set_state(self, s):
+        self.prepareGeometryChange()
+        self.setPos(s[0], s[1])
+        self.p1 = QPointF(s[2], s[3])
+        self.p2 = QPointF(s[4], s[5])
+        self.update()
+        self.geometryChanged.emit()
+
+    def apply_style(self, **kw):
+        for k in ("color", "width_pt", "dashed", "arrow"):
+            if k in kw and kw[k] is not None:
+                setattr(self, k, kw[k])
+        self.prepareGeometryChange()
+        self.update()
+        self.geometryChanged.emit()
+
+    def render_to_pdf(self, page, fontreg, keep_open):
+        a = self.mapToScene(self.p1)
+        b = self.mapToScene(self.p2)
+        shape = page.new_shape()
+        shape.draw_line(fitz.Point(a.x(), a.y()), fitz.Point(b.x(), b.y()))
+        dashes = "[4 3] 0" if self.dashed else None
+        shape.finish(color=_rgb(self.color), width=self.width_pt, dashes=dashes,
+                     lineCap=1, lineJoin=1)
+        for poly, on in ((self._arrow_poly(self.p2, self.p1),
+                          self.arrow in ("end", "both")),
+                         (self._arrow_poly(self.p1, self.p2),
+                          self.arrow == "both")):
+            if not on:
+                continue
+            pts = [self.mapToScene(p) for p in poly]
+            shape.draw_polyline([fitz.Point(p.x(), p.y()) for p in pts])
+            shape.finish(color=_rgb(self.color), fill=_rgb(self.color), closePath=True)
+        shape.commit()
+
+    def to_dict(self):
+        return {"type": "line", "x": self.pos().x(), "y": self.pos().y(),
+                "p1": [self.p1.x(), self.p1.y()], "p2": [self.p2.x(), self.p2.y()],
+                "z": self.zValue(), "name": self._name,
+                "color": self.color.name(), "width_pt": self.width_pt,
+                "dashed": self.dashed, "arrow": self.arrow}
+
+    @classmethod
+    def from_dict(cls, d):
+        item = cls(p1=QPointF(*d.get("p1", [0, 0])),
+                   p2=QPointF(*d.get("p2", [120, 0])),
+                   color=QtGui.QColor(d.get("color", "#282828")),
+                   width_pt=d.get("width_pt", 2.0),
+                   dashed=d.get("dashed", False),
+                   arrow=d.get("arrow", "none"))
+        item.set_name(d.get("name", "线条"))
+        item.setZValue(d.get("z", 0))
+        item.setPos(d.get("x", 0), d.get("y", 0))
         return item
