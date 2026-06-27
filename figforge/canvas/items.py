@@ -15,6 +15,7 @@ Export keeps everything vector / full-resolution:
 from __future__ import annotations
 
 import math
+import uuid
 
 import fitz
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -77,6 +78,7 @@ class CanvasItem(QtWidgets.QGraphicsObject):
     def __init__(self):
         super().__init__()
         self._name = "Item"
+        self.uid = uuid.uuid4().hex
         self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
@@ -174,6 +176,12 @@ class BaseItem(CanvasItem):
         w, h = self._w, self._h
         return {"nw": (0, 0), "n": (w / 2, 0), "ne": (w, 0), "e": (w, h / 2),
                 "se": (w, h), "s": (w / 2, h), "sw": (0, h), "w": (0, h / 2)}
+
+    def anchor_nodes(self) -> dict:
+        """Scene positions of the 8 edge/corner nodes plus the centre."""
+        nodes = dict(self._handle_centers())
+        nodes["c"] = (self._w / 2, self._h / 2)
+        return {k: self.mapToScene(QPointF(x, y)) for k, (x, y) in nodes.items()}
 
     def _rot_center(self) -> QPointF:
         return QPointF(self._w / 2, -_ROT_OFFSET_PX / self._eff_scale())
@@ -340,11 +348,12 @@ class BaseItem(CanvasItem):
     # ---- (de)serialization ----------------------------------------------
     def base_dict(self):
         x, y, w, h = self.get_geometry()
-        return {"x": x, "y": y, "w": w, "h": h, "rotation": self.rotation(),
-                "z": self.zValue(), "name": self._name,
-                "aspect_locked": self.aspect_locked}
+        return {"uid": self.uid, "x": x, "y": y, "w": w, "h": h,
+                "rotation": self.rotation(), "z": self.zValue(),
+                "name": self._name, "aspect_locked": self.aspect_locked}
 
     def apply_base_dict(self, d):
+        self.uid = d.get("uid", self.uid)
         self.set_name(d.get("name", self._name))
         self.aspect_locked = d.get("aspect_locked", True)
         self.setZValue(d.get("z", 0))
@@ -560,7 +569,7 @@ class TextBoxItem(BaseItem):
     editRequested = Signal(object)
     PAD = 4.0
 
-    def __init__(self, text="文本框", family="Arial", size_pt=11.0,
+    def __init__(self, text="文本框", family="Arial", size_pt=3.0,
                  bold=False, italic=False, color=None, w=170.0, h=90.0):
         super().__init__(resizable=True)
         self._name = "文本框"
@@ -574,9 +583,10 @@ class TextBoxItem(BaseItem):
         self.align = "left"
         self.border = True
         self.border_color = QtGui.QColor(70, 70, 70)
-        self.border_width = 1.0
+        self.border_width = 0.5
         self.fill = False
         self.fill_color = QtGui.QColor("white")
+        self.fill_opacity = 1.0
         self._w, self._h = w, h
 
     def font(self):
@@ -594,7 +604,9 @@ class TextBoxItem(BaseItem):
     def paint_content(self, painter):
         rect = QRectF(0, 0, self._w, self._h)
         if self.fill:
-            painter.fillRect(rect, self.fill_color)
+            col = QtGui.QColor(self.fill_color)
+            col.setAlphaF(max(0.0, min(1.0, self.fill_opacity)))
+            painter.fillRect(rect, col)
         if self.border and self.border_width > 0:
             painter.setPen(QtGui.QPen(self.border_color, self.border_width))
             painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -614,7 +626,7 @@ class TextBoxItem(BaseItem):
     def apply_style(self, **kw):
         for k in ("text", "family", "size_pt", "bold", "italic", "color",
                   "align", "border", "border_color", "border_width",
-                  "fill", "fill_color"):
+                  "fill", "fill_color", "fill_opacity"):
             if k in kw and kw[k] is not None:
                 setattr(self, k, kw[k])
         self.update()
@@ -630,7 +642,8 @@ class TextBoxItem(BaseItem):
         ip = inter.new_page(width=w, height=h)
         keep_open.append(inter)
         if self.fill:
-            ip.draw_rect(fitz.Rect(0, 0, w, h), color=None, fill=_rgb(self.fill_color))
+            ip.draw_rect(fitz.Rect(0, 0, w, h), color=None, fill=_rgb(self.fill_color),
+                         fill_opacity=max(0.0, min(1.0, self.fill_opacity)))
         if self.border and self.border_width > 0:
             d = self.border_width / 2
             ip.draw_rect(fitz.Rect(d, d, w - d, h - d),
@@ -650,7 +663,8 @@ class TextBoxItem(BaseItem):
                   "color": self.color.name(), "align": self.align,
                   "border": self.border, "border_color": self.border_color.name(),
                   "border_width": self.border_width, "fill": self.fill,
-                  "fill_color": self.fill_color.name()})
+                  "fill_color": self.fill_color.name(),
+                  "fill_opacity": self.fill_opacity})
         return d
 
     @classmethod
@@ -665,6 +679,7 @@ class TextBoxItem(BaseItem):
         item.border_width = d.get("border_width", 1.0)
         item.fill = d.get("fill", False)
         item.fill_color = QtGui.QColor(d.get("fill_color", "#ffffff"))
+        item.fill_opacity = d.get("fill_opacity", 1.0)
         item.apply_base_dict(d)
         return item
 
@@ -672,7 +687,7 @@ class TextBoxItem(BaseItem):
 class LineItem(CanvasItem):
     """A straight line / arrow annotation with draggable endpoints."""
 
-    def __init__(self, p1=None, p2=None, color=None, width_pt=2.0,
+    def __init__(self, p1=None, p2=None, color=None, width_pt=0.5,
                  dashed=False, arrow="none"):
         super().__init__()
         self._name = "线条"
@@ -682,6 +697,8 @@ class LineItem(CanvasItem):
         self.width_pt = width_pt
         self.dashed = dashed
         self.arrow = arrow                       # 'none' | 'end' | 'both'
+        self.anchor1 = None                      # {"uid":.., "node":..} or None
+        self.anchor2 = None
         self._drag = None
         self._state_at_press = None
 
@@ -754,10 +771,14 @@ class LineItem(CanvasItem):
             self._fill_poly(painter, self._arrow_poly(self.p1, self.p2))
         if self.isSelected():
             painter.setPen(QtGui.QPen(_SEL_COLOR, 1.0 / self._eff_scale()))
-            painter.setBrush(QtGui.QColor("white"))
             hs = self._hs()
-            for pt in (self.p1, self.p2):
-                painter.drawRect(QRectF(pt.x() - hs / 2, pt.y() - hs / 2, hs, hs))
+            for pt, anc in ((self.p1, self.anchor1), (self.p2, self.anchor2)):
+                if anc:                          # anchored -> filled dot
+                    painter.setBrush(_SEL_COLOR)
+                    painter.drawEllipse(pt, hs * 0.7, hs * 0.7)
+                else:                            # free -> white square
+                    painter.setBrush(QtGui.QColor("white"))
+                    painter.drawRect(QRectF(pt.x() - hs / 2, pt.y() - hs / 2, hs, hs))
 
     def mousePressEvent(self, event):
         self._state_at_press = self.get_state()
@@ -772,15 +793,57 @@ class LineItem(CanvasItem):
     def mouseMoveEvent(self, event):
         if self._drag:
             self.prepareGeometryChange()
-            if self._drag == "p1":
-                self.p1 = event.pos()
+            scene = self.scene()
+            hit = self._nearest_node(self.mapToScene(event.pos()), scene) if scene else None
+            if hit:
+                uid, node, npos = hit
+                local, anchor = self.mapFromScene(npos), {"uid": uid, "node": node}
             else:
-                self.p2 = event.pos()
+                local, anchor = event.pos(), None
+            if self._drag == "p1":
+                self.p1, self.anchor1 = local, anchor
+            else:
+                self.p2, self.anchor2 = local, anchor
             self.update()
             self.geometryChanged.emit()
             event.accept()
             return
         super().mouseMoveEvent(event)
+
+    def _nearest_node(self, scene_pt, scene):
+        thr = constants.ANCHOR_THRESHOLD_PX / max(scene._view_scale(), 0.01)
+        best = None
+        for it in scene.items():
+            if not isinstance(it, BaseItem):
+                continue
+            for node, npos in it.anchor_nodes().items():
+                d = npos - scene_pt
+                dist = math.hypot(d.x(), d.y())
+                if dist <= thr and (best is None or dist < best[0]):
+                    best = (dist, it.uid, node, npos)
+        return (best[1], best[2], best[3]) if best else None
+
+    def update_anchors(self, scene):
+        changed = False
+        for which in ("p1", "p2"):
+            anchor = self.anchor1 if which == "p1" else self.anchor2
+            if not anchor:
+                continue
+            target = scene.find_item(anchor.get("uid"))
+            if target is None or not hasattr(target, "anchor_nodes"):
+                continue
+            npos = target.anchor_nodes().get(anchor.get("node"))
+            if npos is None:
+                continue
+            local = self.mapFromScene(npos)
+            if which == "p1" and self.p1 != local:
+                self.p1, changed = local, True
+            elif which == "p2" and self.p2 != local:
+                self.p2, changed = local, True
+        if changed:
+            self.prepareGeometryChange()
+            self.update()
+            self.geometryChanged.emit()
 
     def mouseReleaseEvent(self, event):
         was = self._drag
@@ -805,18 +868,24 @@ class LineItem(CanvasItem):
 
     def itemChange(self, change, value):
         if change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
+            sc = self.scene()
+            if sc and (self.anchor1 or self.anchor2):
+                self.update_anchors(sc)
             self.geometryChanged.emit()
         return super().itemChange(change, value)
 
     def get_state(self):
         return (self.pos().x(), self.pos().y(),
-                self.p1.x(), self.p1.y(), self.p2.x(), self.p2.y())
+                self.p1.x(), self.p1.y(), self.p2.x(), self.p2.y(),
+                self.anchor1, self.anchor2)
 
     def set_state(self, s):
         self.prepareGeometryChange()
         self.setPos(s[0], s[1])
         self.p1 = QPointF(s[2], s[3])
         self.p2 = QPointF(s[4], s[5])
+        if len(s) > 6:
+            self.anchor1, self.anchor2 = s[6], s[7]
         self.update()
         self.geometryChanged.emit()
 
@@ -848,21 +917,26 @@ class LineItem(CanvasItem):
         shape.commit()
 
     def to_dict(self):
-        return {"type": "line", "x": self.pos().x(), "y": self.pos().y(),
+        return {"type": "line", "uid": self.uid,
+                "x": self.pos().x(), "y": self.pos().y(),
                 "p1": [self.p1.x(), self.p1.y()], "p2": [self.p2.x(), self.p2.y()],
                 "z": self.zValue(), "name": self._name,
                 "color": self.color.name(), "width_pt": self.width_pt,
-                "dashed": self.dashed, "arrow": self.arrow}
+                "dashed": self.dashed, "arrow": self.arrow,
+                "anchor1": self.anchor1, "anchor2": self.anchor2}
 
     @classmethod
     def from_dict(cls, d):
         item = cls(p1=QPointF(*d.get("p1", [0, 0])),
                    p2=QPointF(*d.get("p2", [120, 0])),
                    color=QtGui.QColor(d.get("color", "#282828")),
-                   width_pt=d.get("width_pt", 2.0),
+                   width_pt=d.get("width_pt", 0.5),
                    dashed=d.get("dashed", False),
                    arrow=d.get("arrow", "none"))
+        item.uid = d.get("uid", item.uid)
         item.set_name(d.get("name", "线条"))
         item.setZValue(d.get("z", 0))
         item.setPos(d.get("x", 0), d.get("y", 0))
+        item.anchor1 = d.get("anchor1")
+        item.anchor2 = d.get("anchor2")
         return item

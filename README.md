@@ -36,9 +36,10 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
 - **Labels / text**: add text labels by hand with common fonts (Arial, Times New Roman, Calibri…),
   size, bold / italic, colour, alignment; double-click for multi-line editing.
   **No auto-numbering — fully under your control.**
-- **Annotations**: **text boxes** (a wrapping text frame with optional border / fill, rotatable)
-  and **lines / arrows** (solid or dashed, end or both-end arrowheads, draggable endpoints).
-  Both export as vectors.
+- **Annotations**: **text boxes** (wrapping text frame, optional border and fill with adjustable
+  **background opacity**, rotatable) and **lines / arrows** (solid or dashed, end or both-end
+  arrowheads). Line endpoints **snap to text-box / object nodes and stay attached** — move the box
+  and the connected end follows while the other end stays put. Both export as vectors.
 - **Export**:
   - **PDF** — vectors preserved, best for printing.
   - **PNG** — 150 / 300 / 600 / 1200 DPI, optional transparent background.

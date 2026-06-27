@@ -52,6 +52,7 @@ DEFAULT_DPI = 600
 # ---- editing ---------------------------------------------------------------
 DEFAULT_GRID_MM = 5.0
 SNAP_THRESHOLD_PX = 7.0       # snap distance measured in on-screen pixels
+ANCHOR_THRESHOLD_PX = 11.0    # line-endpoint -> object-node snap distance
 MIN_ITEM_PT = 4.0            # smallest allowed item dimension
 HANDLE_PX = 8.0             # resize-handle size in on-screen pixels
 

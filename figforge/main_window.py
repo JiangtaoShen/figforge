@@ -286,6 +286,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def _register_new_item(self, item):
         if isinstance(item, (LabelItem, TextBoxItem)):
             item.editRequested.connect(self.edit_text)
+        if isinstance(item, BaseItem):
+            item.geometryChanged.connect(self._update_line_anchors)
+
+    def _update_line_anchors(self):
+        for it in self.scene.iter_items():
+            if isinstance(it, LineItem):
+                it.update_anchors(self.scene)
 
     def _selected(self):
         return [it for it in self.scene.iter_items() if it.isSelected()]
@@ -499,6 +506,8 @@ class MainWindow(QtWidgets.QMainWindow):
             dup = LineItem(p1=QtCore.QPointF(it.p1), p2=QtCore.QPointF(it.p2),
                            color=QtGui.QColor(it.color), width_pt=it.width_pt,
                            dashed=it.dashed, arrow=it.arrow)
+            dup.anchor1 = dict(it.anchor1) if it.anchor1 else None
+            dup.anchor2 = dict(it.anchor2) if it.anchor2 else None
             dup.set_name(f"线条 {self._line_count}")
             return dup
         if isinstance(it, LabelItem):
@@ -712,6 +721,7 @@ class MainWindow(QtWidgets.QMainWindow):
             maxz = max(maxz, it.zValue())
         self.scene._z_counter = maxz + 1
         self._suspend = False
+        self._update_line_anchors()              # re-pin loaded connectors
 
         project.cleanup_tempdir(self._tempdir)
         self._tempdir = tempdir

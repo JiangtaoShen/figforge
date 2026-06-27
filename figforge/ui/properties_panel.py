@@ -126,17 +126,20 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         self.btn_border_color = QtWidgets.QPushButton("边框颜色")
         self.chk_fill = QtWidgets.QCheckBox("填充背景")
         self.btn_fill_color = QtWidgets.QPushButton("填充颜色")
+        self.spin_alpha = self._spin(0, 100, 0, " %", 5)
         bf.addRow("", self.chk_border)
         bf.addRow("线宽", self.spin_bw)
         bf.addRow("", self.btn_border_color)
         bf.addRow("", self.chk_fill)
         bf.addRow("", self.btn_fill_color)
+        bf.addRow("背景透明度", self.spin_alpha)
         lay.addWidget(self.box_frame)
         self.chk_border.toggled.connect(self._apply_frame)
         self.spin_bw.editingFinished.connect(self._apply_frame)
         self.btn_border_color.clicked.connect(lambda: self._pick_frame_color("border"))
         self.chk_fill.toggled.connect(self._apply_frame)
         self.btn_fill_color.clicked.connect(lambda: self._pick_frame_color("fill"))
+        self.spin_alpha.editingFinished.connect(self._apply_frame)
 
         # --- line -------------------------------------------------------
         self.box_line = QtWidgets.QGroupBox("线条")
@@ -263,6 +266,7 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         self.chk_fill.setChecked(it.fill)
         self._fill_color = QtGui.QColor(it.fill_color)
         self._tint(self.btn_fill_color, self._fill_color)
+        self.spin_alpha.setValue(round((1.0 - it.fill_opacity) * 100))
         self._loading = False
 
     def _load_line(self):
@@ -376,7 +380,8 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         new = dict(border=self.chk_border.isChecked(), border_width=self.spin_bw.value(),
                    border_color=QtGui.QColor(self._border_color),
                    fill=self.chk_fill.isChecked(),
-                   fill_color=QtGui.QColor(self._fill_color))
+                   fill_color=QtGui.QColor(self._fill_color),
+                   fill_opacity=1.0 - self.spin_alpha.value() / 100.0)
 
         def do():
             it.apply_style(**new)
@@ -384,7 +389,8 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         def undo():
             it.apply_style(border=before["border"], border_width=before["border_width"],
                            border_color=QtGui.QColor(before["border_color"]),
-                           fill=before["fill"], fill_color=QtGui.QColor(before["fill_color"]))
+                           fill=before["fill"], fill_color=QtGui.QColor(before["fill_color"]),
+                           fill_opacity=before["fill_opacity"])
 
         self._push(FuncCommand("修改文本框", do, undo))
 

@@ -68,6 +68,12 @@ class PageScene(QtWidgets.QGraphicsScene):
         items.sort(key=lambda it: it.zValue())
         return items
 
+    def find_item(self, uid):
+        for it in self.items():
+            if isinstance(it, CanvasItem) and getattr(it, "uid", None) == uid:
+                return it
+        return None
+
     def push_geometry_undo(self, item, old, new):
         if self.undo_stack is not None:
             self.undo_stack.push(GeometryCommand(item, old, new))
