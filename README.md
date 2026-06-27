@@ -1,5 +1,7 @@
 # FigForge
 
+<img src="figforge/resources/icon.png" width="96" align="right" alt="FigForge icon">
+
 **English** | [简体中文](README.zh-CN.md)
 
 A lightweight, **vector-preserving** layout tool for academic figures — a trimmed-down

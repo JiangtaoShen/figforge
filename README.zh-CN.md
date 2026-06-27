@@ -1,5 +1,7 @@
 # FigForge · 论文图排版
 
+<img src="figforge/resources/icon.png" width="96" align="right" alt="FigForge icon">
+
 [English](README.md) | **简体中文**
 
 一个面向学术论文的**轻量图排版工具**（专业平面设计软件的精简版），用于把多张子图拼成
