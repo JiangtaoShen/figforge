@@ -16,25 +16,27 @@ from .commands import AddItemCommand, DeleteItemsCommand, FuncCommand
 from .fileio import exporters, importers, project
 from .ui.layers_panel import LayersPanel
 from .ui.properties_panel import PropertiesPanel
+from . import i18n
+from .i18n import tr
 
-_IMPORT_FILTER = (
-    "所有支持的图片 (*.png *.jpg *.jpeg *.tif *.tiff *.bmp *.gif *.webp "
-    "*.pdf *.svg *.eps *.ps);;位图 (*.png *.jpg *.jpeg *.tif *.tiff *.bmp *.gif *.webp);;"
-    "矢量 (*.pdf *.svg *.eps *.ps);;所有文件 (*.*)"
+_IMPORT_FILTER_KEY = (
+    "All supported (*.png *.jpg *.jpeg *.tif *.tiff *.bmp *.gif *.webp "
+    "*.pdf *.svg *.eps *.ps);;Raster (*.png *.jpg *.jpeg *.tif *.tiff *.bmp "
+    "*.gif *.webp);;Vector (*.pdf *.svg *.eps *.ps);;All files (*.*)"
 )
 
 
 class ExportRasterDialog(QtWidgets.QDialog):
     def __init__(self, parent, allow_transparent=True):
         super().__init__(parent)
-        self.setWindowTitle("导出设置")
+        self.setWindowTitle(tr("Export Settings"))
         form = QtWidgets.QFormLayout(self)
         self.cmb_dpi = QtWidgets.QComboBox()
         for d in constants.DPI_CHOICES:
             self.cmb_dpi.addItem(f"{d} DPI", d)
         self.cmb_dpi.setCurrentText(f"{constants.DEFAULT_DPI} DPI")
-        form.addRow("分辨率", self.cmb_dpi)
-        self.chk_transparent = QtWidgets.QCheckBox("透明背景")
+        form.addRow(tr("Resolution"), self.cmb_dpi)
+        self.chk_transparent = QtWidgets.QCheckBox(tr("Transparent background"))
         if allow_transparent:
             form.addRow("", self.chk_transparent)
         buttons = QtWidgets.QDialogButtonBox(
@@ -68,6 +70,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._label_count = 0
         self._tb_count = 0
         self._line_count = 0
+        self._clipboard = []
+        self._paste_count = 0
 
         self._build_docks()
         self._build_actions()
@@ -77,9 +81,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.scene.selectionChanged.connect(self.on_selection_changed)
         self.scene.sceneEdited.connect(self._on_scene_edited)
+        self.scene.ctrlDuplicate.connect(self._ctrl_duplicate)
         self.undo_stack.cleanChanged.connect(lambda *_: self._update_title())
         self.view.zoomChanged.connect(
-            lambda p: self.lbl_zoom.setText(f"缩放 {p:.0f}%"))
+            lambda p: self.lbl_zoom.setText(tr("Zoom {0}%").format(round(p))))
         self.view.cursorMoved.connect(self._on_cursor)
         self.view.filesDropped.connect(self.on_files_dropped)
 
@@ -90,14 +95,14 @@ class MainWindow(QtWidgets.QMainWindow):
     # ------------------------------------------------------------------ docks
     def _build_docks(self):
         self.properties = PropertiesPanel(self)
-        d1 = QtWidgets.QDockWidget("属性", self)
+        d1 = QtWidgets.QDockWidget(tr("Properties"), self)
         d1.setWidget(self.properties)
         d1.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea
                            | Qt.DockWidgetArea.LeftDockWidgetArea)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, d1)
 
         self.layers = LayersPanel(self)
-        d2 = QtWidgets.QDockWidget("图层", self)
+        d2 = QtWidgets.QDockWidget(tr("Layers"), self)
         d2.setWidget(self.layers)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, d2)
 
@@ -119,50 +124,53 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _build_actions(self):
         QKS = QtGui.QKeySequence
-        self.a_new = self._act("新建", self.new_project, QKS.StandardKey.New)
-        self.a_open = self._act("打开…", self.open_project, QKS.StandardKey.Open)
-        self.a_save = self._act("保存", self.save_project, QKS.StandardKey.Save)
-        self.a_save_as = self._act("另存为…", self.save_project_as, QKS.StandardKey.SaveAs)
-        self.a_import = self._act("导入图片…", self.import_figures, "Ctrl+I")
-        self.a_exp_pdf = self._act("导出 PDF（矢量）…", self.export_pdf)
-        self.a_exp_png = self._act("导出 PNG（高分辨率）…", self.export_png)
-        self.a_exp_tiff = self._act("导出 TIFF…", self.export_tiff)
-        self.a_quit = self._act("退出", self.close, QKS.StandardKey.Quit)
+        self.a_new = self._act(tr("New"), self.new_project, QKS.StandardKey.New)
+        self.a_open = self._act(tr("Open…"), self.open_project, QKS.StandardKey.Open)
+        self.a_save = self._act(tr("Save"), self.save_project, QKS.StandardKey.Save)
+        self.a_save_as = self._act(tr("Save As…"), self.save_project_as, QKS.StandardKey.SaveAs)
+        self.a_import = self._act(tr("Import Images…"), self.import_figures, "Ctrl+I")
+        self.a_exp_pdf = self._act(tr("Export PDF (vector)…"), self.export_pdf)
+        self.a_exp_png = self._act(tr("Export PNG (high-res)…"), self.export_png)
+        self.a_exp_tiff = self._act(tr("Export TIFF…"), self.export_tiff)
+        self.a_quit = self._act(tr("Quit"), self.close, QKS.StandardKey.Quit)
 
-        self.a_undo = self.undo_stack.createUndoAction(self, "撤销")
+        self.a_undo = self.undo_stack.createUndoAction(self, tr("Undo"))
         self.a_undo.setShortcut(QKS.StandardKey.Undo)
-        self.a_redo = self.undo_stack.createRedoAction(self, "重做")
+        self.a_redo = self.undo_stack.createRedoAction(self, tr("Redo"))
         self.a_redo.setShortcut(QKS.StandardKey.Redo)
-        self.a_delete = self._act("删除", self.delete_selected, QKS.StandardKey.Delete)
-        self.a_select_all = self._act("全选", self.select_all, QKS.StandardKey.SelectAll)
-        self.a_duplicate = self._act("复制副本", self.duplicate_selected, "Ctrl+D")
+        self.a_delete = self._act(tr("Delete"), self.delete_selected, QKS.StandardKey.Delete)
+        self.a_select_all = self._act(tr("Select All"), self.select_all, QKS.StandardKey.SelectAll)
+        self.a_duplicate = self._act(tr("Duplicate"), self.duplicate_selected, "Ctrl+D")
+        self.a_copy = self._act(tr("Copy"), self.copy_selected, QKS.StandardKey.Copy)
+        self.a_cut = self._act(tr("Cut"), self.cut_selected, QKS.StandardKey.Cut)
+        self.a_paste = self._act(tr("Paste"), self.paste, QKS.StandardKey.Paste)
 
-        self.a_add_label = self._act("添加文字标签", self.add_label, "T")
-        self.a_add_textbox = self._act("添加文本框", self.add_textbox)
-        self.a_add_line = self._act("添加线条", self.add_line)
-        self.a_crop = self._act("裁剪图片…", self.crop_selected, "C")
-        self.a_rot_l = self._act("向左旋转 90°", lambda: self.rotate_selected(-90))
-        self.a_rot_r = self._act("向右旋转 90°", lambda: self.rotate_selected(90))
-        self.a_rot_reset = self._act("重置旋转", self.reset_rotation)
+        self.a_add_label = self._act(tr("Add Text Label"), self.add_label, "T")
+        self.a_add_textbox = self._act(tr("Add Text Box"), self.add_textbox)
+        self.a_add_line = self._act(tr("Add Line"), self.add_line)
+        self.a_crop = self._act(tr("Crop Image…"), self.crop_selected, "C")
+        self.a_rot_l = self._act(tr("Rotate Left 90°"), lambda: self.rotate_selected(-90))
+        self.a_rot_r = self._act(tr("Rotate Right 90°"), lambda: self.rotate_selected(90))
+        self.a_rot_reset = self._act(tr("Reset Rotation"), self.reset_rotation)
 
-        self.a_al_left = self._act("左对齐", lambda: self.align("left"))
-        self.a_al_hc = self._act("水平居中", lambda: self.align("hcenter"))
-        self.a_al_right = self._act("右对齐", lambda: self.align("right"))
-        self.a_al_top = self._act("顶对齐", lambda: self.align("top"))
-        self.a_al_vm = self._act("垂直居中", lambda: self.align("vmiddle"))
-        self.a_al_bottom = self._act("底对齐", lambda: self.align("bottom"))
-        self.a_dist_h = self._act("水平等距分布", lambda: self.distribute("h"))
-        self.a_dist_v = self._act("垂直等距分布", lambda: self.distribute("v"))
+        self.a_al_left = self._act(tr("Align Left"), lambda: self.align("left"))
+        self.a_al_hc = self._act(tr("Align Center"), lambda: self.align("hcenter"))
+        self.a_al_right = self._act(tr("Align Right"), lambda: self.align("right"))
+        self.a_al_top = self._act(tr("Align Top"), lambda: self.align("top"))
+        self.a_al_vm = self._act(tr("Align Middle"), lambda: self.align("vmiddle"))
+        self.a_al_bottom = self._act(tr("Align Bottom"), lambda: self.align("bottom"))
+        self.a_dist_h = self._act(tr("Distribute Horizontally"), lambda: self.distribute("h"))
+        self.a_dist_v = self._act(tr("Distribute Vertically"), lambda: self.distribute("v"))
 
-        self.a_front = self._act("置于顶层", lambda: self.change_z("front"))
-        self.a_up = self._act("上移一层", lambda: self.change_z("up"))
-        self.a_down = self._act("下移一层", lambda: self.change_z("down"))
-        self.a_back = self._act("置于底层", lambda: self.change_z("back"))
+        self.a_front = self._act(tr("Bring to Front"), lambda: self.change_z("front"))
+        self.a_up = self._act(tr("Bring Forward"), lambda: self.change_z("up"))
+        self.a_down = self._act(tr("Send Backward"), lambda: self.change_z("down"))
+        self.a_back = self._act(tr("Send to Back"), lambda: self.change_z("back"))
 
-        self.a_zoom_in = self._act("放大", self.view.zoom_in, QKS.StandardKey.ZoomIn)
-        self.a_zoom_out = self._act("缩小", self.view.zoom_out, QKS.StandardKey.ZoomOut)
-        self.a_fit = self._act("适应页面", self.view.fit_page, "Ctrl+0")
-        self.a_reset_zoom = self._act("实际大小 100%", self.view.reset_zoom)
+        self.a_zoom_in = self._act(tr("Zoom In"), self.view.zoom_in, QKS.StandardKey.ZoomIn)
+        self.a_zoom_out = self._act(tr("Zoom Out"), self.view.zoom_out, QKS.StandardKey.ZoomOut)
+        self.a_fit = self._act(tr("Fit Page"), self.view.fit_page, "Ctrl+0")
+        self.a_reset_zoom = self._act(tr("Actual Size 100%"), self.view.reset_zoom)
 
         # attach line-art icons (also appear next to the menu items)
         ic = build_icons(self.palette().color(QtGui.QPalette.ColorRole.WindowText))
@@ -182,7 +190,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _build_menus(self):
         mb = self.menuBar()
-        m = mb.addMenu("文件")
+        m = mb.addMenu(tr("File"))
         m.addActions([self.a_new, self.a_open, self.a_save, self.a_save_as])
         m.addSeparator()
         m.addAction(self.a_import)
@@ -191,37 +199,48 @@ class MainWindow(QtWidgets.QMainWindow):
         m.addSeparator()
         m.addAction(self.a_quit)
 
-        m = mb.addMenu("编辑")
+        m = mb.addMenu(tr("Edit"))
         m.addActions([self.a_undo, self.a_redo])
+        m.addSeparator()
+        m.addActions([self.a_copy, self.a_cut, self.a_paste])
         m.addSeparator()
         m.addActions([self.a_duplicate, self.a_delete, self.a_select_all])
 
-        m = mb.addMenu("对象")
+        m = mb.addMenu(tr("Object"))
         m.addAction(self.a_add_label)
         m.addAction(self.a_add_textbox)
         m.addAction(self.a_add_line)
         m.addAction(self.a_crop)
         m.addSeparator()
-        sub = m.addMenu("对齐")
+        sub = m.addMenu(tr("Align"))
         sub.addActions([self.a_al_left, self.a_al_hc, self.a_al_right])
         sub.addSeparator()
         sub.addActions([self.a_al_top, self.a_al_vm, self.a_al_bottom])
         sub.addSeparator()
         sub.addActions([self.a_dist_h, self.a_dist_v])
-        sub = m.addMenu("层叠顺序")
+        sub = m.addMenu(tr("Order"))
         sub.addActions([self.a_front, self.a_up, self.a_down, self.a_back])
-        sub = m.addMenu("旋转")
+        sub = m.addMenu(tr("Rotate"))
         sub.addActions([self.a_rot_l, self.a_rot_r, self.a_rot_reset])
 
-        m = mb.addMenu("视图")
+        m = mb.addMenu(tr("View"))
         m.addActions([self.a_zoom_in, self.a_zoom_out, self.a_fit, self.a_reset_zoom])
 
-        m = mb.addMenu("帮助")
-        m.addAction(self._act("使用说明", self.show_help))
-        m.addAction(self._act("关于", self.show_about))
+        m = mb.addMenu(tr("Language"))
+        grp = QtGui.QActionGroup(self)
+        for code, label in i18n.available():
+            a = QtGui.QAction(label, self, checkable=True)
+            a.setChecked(code == i18n.language())
+            a.triggered.connect(lambda _=False, c=code: self._set_language(c))
+            grp.addAction(a)
+            m.addAction(a)
+
+        m = mb.addMenu(tr("Help"))
+        m.addAction(self._act(tr("User Guide"), self.show_help))
+        m.addAction(self._act(tr("About"), self.show_about))
 
     def _build_toolbars(self):
-        tb = self.addToolBar("主工具栏")
+        tb = self.addToolBar(tr("Main Toolbar"))
         tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         tb.setIconSize(QtCore.QSize(22, 22))
         tb.addAction(self.a_import)
@@ -239,19 +258,19 @@ class MainWindow(QtWidgets.QMainWindow):
         tb.addActions([self.a_exp_pdf, self.a_exp_png])
 
         # page / grid toolbar
-        pb = self.addToolBar("页面")
-        pb.addWidget(QtWidgets.QLabel(" 纸张 "))
+        pb = self.addToolBar(tr("Page"))
+        pb.addWidget(QtWidgets.QLabel(tr(" Paper ")))
         self.cmb_page = QtWidgets.QComboBox()
         self.cmb_page.addItems(list(constants.PAGE_SIZES.keys()))
         pb.addWidget(self.cmb_page)
         self.cmb_orient = QtWidgets.QComboBox()
-        self.cmb_orient.addItems(["纵向", "横向"])
+        self.cmb_orient.addItems([tr("Portrait"), tr("Landscape")])
         pb.addWidget(self.cmb_orient)
         self.cmb_page.currentIndexChanged.connect(self._page_changed)
         self.cmb_orient.currentIndexChanged.connect(self._page_changed)
         pb.addSeparator()
-        self.chk_grid = QtWidgets.QCheckBox("网格")
-        self.chk_snap = QtWidgets.QCheckBox("智能吸附")
+        self.chk_grid = QtWidgets.QCheckBox(tr("Grid"))
+        self.chk_snap = QtWidgets.QCheckBox(tr("Smart Snap"))
         self.chk_snap.setChecked(True)
         pb.addWidget(self.chk_grid)
         pb.addWidget(self.chk_snap)
@@ -269,7 +288,7 @@ class MainWindow(QtWidgets.QMainWindow):
         sb = self.statusBar()
         self.lbl_pos = QtWidgets.QLabel("X: -  Y: -")
         self.lbl_page = QtWidgets.QLabel("")
-        self.lbl_zoom = QtWidgets.QLabel("缩放 100%")
+        self.lbl_zoom = QtWidgets.QLabel(tr("Zoom {0}%").format(100))
         sb.addWidget(self.lbl_pos)
         sb.addPermanentWidget(self.lbl_page)
         sb.addPermanentWidget(self.lbl_zoom)
@@ -305,7 +324,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # ----------------------------------------------------------------- import
     def import_figures(self):
         paths, _ = QtWidgets.QFileDialog.getOpenFileNames(
-            self, "导入图片", "", _IMPORT_FILTER)
+            self, tr("Import images"), "", tr(_IMPORT_FILTER_KEY))
         if paths:
             self.add_figures_from_paths(paths)
 
@@ -315,7 +334,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def add_figures_from_paths(self, paths, at_scene_pos=None):
         new_items = []
-        self.undo_stack.beginMacro("导入图片")
+        self.undo_stack.beginMacro(tr("Import Images…"))
         for path in paths:
             try:
                 page_index = 0
@@ -323,8 +342,9 @@ class MainWindow(QtWidgets.QMainWindow):
                     n = importers.pdf_page_count(path)
                     if n > 1:
                         val, ok = QtWidgets.QInputDialog.getInt(
-                            self, "选择页面",
-                            f"{os.path.basename(path)} 有 {n} 页，导入第几页？",
+                            self, tr("Choose Page"),
+                            tr("{0} has {1} pages. Which page to import?").format(
+                                os.path.basename(path), n),
                             1, 1, n)
                         if not ok:
                             continue
@@ -332,10 +352,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 source = importers.load_source(path, page_index)
             except Exception as e:
                 QtWidgets.QMessageBox.warning(
-                    self, "导入失败", f"{os.path.basename(path)}\n\n{e}")
+                    self, tr("Import Failed"), f"{os.path.basename(path)}\n\n{e}")
                 continue
             self._fig_count += 1
-            item = FigureItem(source, name=f"图片 {self._fig_count}")
+            item = FigureItem(source, name=f"{tr('Image')} {self._fig_count}")
             self._fit_initial(item, len(new_items), at_scene_pos)
             item.setZValue(self.scene.next_z())
             self._register_new_item(item)
@@ -366,7 +386,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._label_count += 1
         item = LabelItem(text="a", family=self._default_label_font(),
                          size_pt=14.0, bold=True)
-        item.set_name(f"标签 {self._label_count}")
+        item.set_name(f"{tr('Label')} {self._label_count}")
         center = self.view.mapToScene(self.view.viewport().rect().center())
         item.setZValue(self.scene.next_z())
         item.set_geometry(center.x(), center.y(), *item.size())
@@ -376,8 +396,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def add_textbox(self):
         self._tb_count += 1
-        item = TextBoxItem(text="文本框", family=self._default_label_font())
-        item.set_name(f"文本框 {self._tb_count}")
+        item = TextBoxItem(text=tr("Text Box"), family=self._default_label_font())
+        item.set_name(f"{tr('Text Box')} {self._tb_count}")
         center = self.view.mapToScene(self.view.viewport().rect().center())
         w, h = item.size()
         item.setZValue(self.scene.next_z())
@@ -389,7 +409,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def add_line(self):
         self._line_count += 1
         item = LineItem()
-        item.set_name(f"线条 {self._line_count}")
+        item.set_name(f"{tr('Line')} {self._line_count}")
         center = self.view.mapToScene(self.view.viewport().rect().center())
         item.setZValue(self.scene.next_z())
         item.setPos(center.x() - 60, center.y())
@@ -399,11 +419,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def edit_text(self, item):
         text, ok = QtWidgets.QInputDialog.getMultiLineText(
-            self, "编辑文字", "内容：", item.text)
+            self, tr("Edit Text"), tr("Content:"), item.text)
         if not ok:
             return
         old = item.text
-        self._push(FuncCommand("编辑文字",
+        self._push(FuncCommand(tr("Edit text"),
                                lambda: item.set_text(text),
                                lambda: item.set_text(old)))
 
@@ -425,15 +445,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.undo_stack.endMacro()
 
     def rotate_selected(self, delta):
-        self._rotate_to(lambda r: (r + delta) % 360, "旋转")
+        self._rotate_to(lambda r: (r + delta) % 360, tr("Modify rotation"))
 
     def reset_rotation(self):
-        self._rotate_to(lambda r: 0.0, "重置旋转")
+        self._rotate_to(lambda r: 0.0, tr("Reset Rotation"))
 
     def crop_selected(self):
         figs = [it for it in self._selected() if isinstance(it, FigureItem)]
         if len(figs) != 1:
-            QtWidgets.QMessageBox.information(self, "裁剪", "请选择单个图片进行裁剪。")
+            QtWidgets.QMessageBox.information(
+                self, tr("Crop"), tr("Please select a single image to crop."))
             return
         it = figs[0]
         from .ui.crop_dialog import CropDialog
@@ -443,7 +464,7 @@ class MainWindow(QtWidgets.QMainWindow):
         old, new = it.crop, dlg.get_crop()
         if new == old:
             return
-        self._push(FuncCommand("裁剪",
+        self._push(FuncCommand(tr("Crop"),
                                lambda: it.set_crop(new),
                                lambda: it.set_crop(old)))
 
@@ -463,7 +484,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         off = constants.mm_to_pt(4)
         dups = []
-        self.undo_stack.beginMacro("复制副本")
+        self.undo_stack.beginMacro(tr("Duplicate"))
         for it in items:
             dup = self._clone_item(it)
             if dup is None:
@@ -485,7 +506,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if isinstance(it, FigureItem):
             self._fig_count += 1
             dup = FigureItem(importers.load_source(it._source_path, it._page_index),
-                             name=f"图片 {self._fig_count}")
+                             name=f"{tr('Image')} {self._fig_count}")
             dup.aspect_locked = it.aspect_locked
             dup.crop = it.crop
             return dup
@@ -499,7 +520,7 @@ class MainWindow(QtWidgets.QMainWindow):
             dup.border_color = QtGui.QColor(it.border_color)
             dup.fill = it.fill
             dup.fill_color = QtGui.QColor(it.fill_color)
-            dup.set_name(f"文本框 {self._tb_count}")
+            dup.set_name(f"{tr('Text Box')} {self._tb_count}")
             return dup
         if isinstance(it, LineItem):
             self._line_count += 1
@@ -508,7 +529,7 @@ class MainWindow(QtWidgets.QMainWindow):
                            dashed=it.dashed, arrow=it.arrow)
             dup.anchor1 = dict(it.anchor1) if it.anchor1 else None
             dup.anchor2 = dict(it.anchor2) if it.anchor2 else None
-            dup.set_name(f"线条 {self._line_count}")
+            dup.set_name(f"{tr('Line')} {self._line_count}")
             return dup
         if isinstance(it, LabelItem):
             self._label_count += 1
@@ -517,9 +538,61 @@ class MainWindow(QtWidgets.QMainWindow):
                             color=QtGui.QColor(it.color))
             dup.align = it.align
             dup._recompute()
-            dup.set_name(f"标签 {self._label_count}")
+            dup.set_name(f"{tr('Label')} {self._label_count}")
             return dup
         return None
+
+    def _place_copies(self, sources, off, select_copies):
+        dups = []
+        for it in sources:
+            dup = self._clone_item(it)
+            if dup is None:
+                continue
+            dup.setZValue(self.scene.next_z())
+            if off == 0:
+                dup.set_state(it.get_state())
+            elif isinstance(it, LineItem):
+                dup.setPos(it.pos().x() + off, it.pos().y() + off)
+            else:
+                x, y, w, h, rot = it.get_state()
+                dup.set_state((x + off, y + off, w, h, rot))
+            self._register_new_item(dup)
+            self._push(AddItemCommand(self.scene, dup))
+            dups.append(dup)
+        if dups and select_copies:
+            self._select_only(dups)
+        return dups
+
+    def copy_selected(self):
+        sel = self._selected()
+        if sel:
+            self._clipboard = list(sel)
+            self._paste_count = 0
+
+    def cut_selected(self):
+        sel = self._selected()
+        if not sel:
+            return
+        self._clipboard = list(sel)
+        self._paste_count = 0
+        self.delete_selected()
+
+    def paste(self):
+        if not self._clipboard:
+            return
+        self._paste_count += 1
+        off = constants.mm_to_pt(4) * self._paste_count
+        self.undo_stack.beginMacro(tr("Paste"))
+        self._place_copies(self._clipboard, off, select_copies=True)
+        self.undo_stack.endMacro()
+
+    def _ctrl_duplicate(self):
+        sel = self._selected()
+        if not sel:
+            return
+        self.undo_stack.beginMacro(tr("Drag-duplicate"))
+        self._place_copies(sel, 0, select_copies=False)
+        self.undo_stack.endMacro()
 
     def change_z(self, mode):
         sel = self._selected()
@@ -552,7 +625,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 it.setZValue(idx + 1)
             self.scene._z_counter = max(self.scene._z_counter, len(lst) + 1)
         new = {it: it.zValue() for it in order}
-        self._push(FuncCommand("调整层叠",
+        self._push(FuncCommand(tr("Reorder"),
                                lambda: [it.setZValue(new[it]) for it in order],
                                lambda: [it.setZValue(old[it]) for it in order]))
         self.layers.refresh()
@@ -594,7 +667,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 elif mode == "bottom":
                     y = b.bottom() - h
                 it.set_geometry(x, y, w, h)
-        self._with_geometry_undo("对齐", mut)
+        self._with_geometry_undo(tr("Align"), mut)
 
     def distribute(self, axis):
         def mut(items):
@@ -613,7 +686,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 else:
                     y = c - h / 2
                 it.set_geometry(x, y, w, h)
-        self._with_geometry_undo("分布", mut)
+        self._with_geometry_undo(tr("Distribute"), mut)
 
     # ------------------------------------------------------------ page / grid
     def _page_changed(self, *_):
@@ -630,7 +703,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _update_page_label(self):
         self.lbl_page.setText(
-            f"{self.scene.page_name} · {self.scene.orientation} · "
+            f"{self.scene.page_name} · {tr(self.scene.orientation)} · "
             f"{self.scene.page_w * constants.MM_PER_PT:.0f}×"
             f"{self.scene.page_h * constants.MM_PER_PT:.0f} mm")
 
@@ -655,15 +728,41 @@ class MainWindow(QtWidgets.QMainWindow):
         return self._extra_dirty or not self.undo_stack.isClean()
 
     def _update_title(self):
-        name = os.path.basename(self.current_path) if self.current_path else "未命名"
+        name = os.path.basename(self.current_path) if self.current_path else tr("Untitled")
         star = "*" if self._is_dirty() else ""
-        self.setWindowTitle(f"{star}{name} — {constants.APP_TITLE}")
+        self.setWindowTitle(f"{star}{name} — {tr('FigForge — Academic Figure Layout')}")
+
+    def _set_language(self, lang):
+        if lang == i18n.language():
+            return
+        i18n.save_language(lang)
+        r = QtWidgets.QMessageBox.question(
+            self, tr("Language changed"),
+            tr("The language will switch after restarting. Restart now?"),
+            QtWidgets.QMessageBox.StandardButton.Yes
+            | QtWidgets.QMessageBox.StandardButton.No)
+        if r == QtWidgets.QMessageBox.StandardButton.Yes:
+            self._restart()
+
+    def _restart(self):
+        import sys
+        if not self._confirm_discard():
+            return
+        try:
+            self.undo_stack.cleanChanged.disconnect()
+        except (RuntimeError, TypeError):
+            pass
+        project.cleanup_tempdir(self._tempdir)
+        self._tempdir = None
+        args = [] if getattr(sys, "frozen", False) else sys.argv
+        QtCore.QProcess.startDetached(sys.executable, args)
+        QtWidgets.QApplication.quit()
 
     def _confirm_discard(self) -> bool:
         if not self._is_dirty():
             return True
         r = QtWidgets.QMessageBox.question(
-            self, "未保存", "当前项目有未保存的更改，是否保存？",
+            self, tr("Unsaved"), tr("The project has unsaved changes. Save them?"),
             QtWidgets.QMessageBox.StandardButton.Save
             | QtWidgets.QMessageBox.StandardButton.Discard
             | QtWidgets.QMessageBox.StandardButton.Cancel)
@@ -697,13 +796,13 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self._confirm_discard():
             return
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "打开项目", "", f"FigForge 项目 (*{constants.PROJECT_EXT})")
+            self, tr("Open Project"), "", tr("FigForge Project (*.ffp)"))
         if not path:
             return
         try:
             config, items, tempdir = project.load_project(path)
         except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "打开失败", str(e))
+            QtWidgets.QMessageBox.critical(self, tr("Open Failed"), str(e))
             return
         self._suspend = True
         self.scene.clear()
@@ -745,7 +844,7 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             project.save_project(self.current_path, self.scene)
         except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "保存失败", str(e))
+            QtWidgets.QMessageBox.critical(self, tr("Save Failed"), str(e))
             return False
         self.undo_stack.setClean()
         self._extra_dirty = False
@@ -754,8 +853,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def save_project_as(self) -> bool:
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "另存为", "未命名" + constants.PROJECT_EXT,
-            f"FigForge 项目 (*{constants.PROJECT_EXT})")
+            self, tr("Save As"), tr("Untitled") + constants.PROJECT_EXT,
+            tr("FigForge Project (*.ffp)"))
         if not path:
             return False
         if not path.lower().endswith(constants.PROJECT_EXT):
@@ -777,7 +876,8 @@ class MainWindow(QtWidgets.QMainWindow):
     # ----------------------------------------------------------------- export
     def _has_items(self) -> bool:
         if not self.scene.iter_items():
-            QtWidgets.QMessageBox.information(self, "提示", "页面是空的，先导入图片吧。")
+            QtWidgets.QMessageBox.information(
+                self, tr("Info"), tr("The page is empty — import an image first."))
             return False
         return True
 
@@ -785,7 +885,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self._has_items():
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "导出 PDF", "figure.pdf", "PDF (*.pdf)")
+            self, tr("Export PDF"), "figure.pdf", tr("PDF (*.pdf)"))
         if not path:
             return
         if not path.lower().endswith(".pdf"):
@@ -793,9 +893,9 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             exporters.export_pdf(self.scene, path, white_bg=True)
         except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "导出失败", str(e))
+            QtWidgets.QMessageBox.critical(self, tr("Export Failed"), str(e))
             return
-        self.statusBar().showMessage(f"已导出矢量 PDF：{path}", 6000)
+        self.statusBar().showMessage(tr("Exported vector PDF: {0}").format(path), 6000)
 
     def export_png(self):
         if not self._has_items():
@@ -804,7 +904,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "导出 PNG", "figure.png", "PNG (*.png)")
+            self, tr("Export PNG"), "figure.png", tr("PNG (*.png)"))
         if not path:
             return
         if not path.lower().endswith(".png"):
@@ -813,9 +913,10 @@ class MainWindow(QtWidgets.QMainWindow):
             exporters.export_png(self.scene, path, dpi=dlg.dpi(),
                                  transparent=dlg.transparent())
         except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "导出失败", str(e))
+            QtWidgets.QMessageBox.critical(self, tr("Export Failed"), str(e))
             return
-        self.statusBar().showMessage(f"已导出 {dlg.dpi()} DPI PNG：{path}", 6000)
+        self.statusBar().showMessage(
+            tr("Exported {0} DPI PNG: {1}").format(dlg.dpi(), path), 6000)
 
     def export_tiff(self):
         if not self._has_items():
@@ -824,7 +925,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "导出 TIFF", "figure.tiff", "TIFF (*.tiff *.tif)")
+            self, tr("Export TIFF"), "figure.tiff", tr("TIFF (*.tiff *.tif)"))
         if not path:
             return
         if not path.lower().endswith((".tif", ".tiff")):
@@ -832,29 +933,21 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             exporters.export_tiff(self.scene, path, dpi=dlg.dpi())
         except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "导出失败", str(e))
+            QtWidgets.QMessageBox.critical(self, tr("Export Failed"), str(e))
             return
-        self.statusBar().showMessage(f"已导出 {dlg.dpi()} DPI TIFF：{path}", 6000)
+        self.statusBar().showMessage(
+            tr("Exported {0} DPI TIFF: {1}").format(dlg.dpi(), path), 6000)
 
     # ------------------------------------------------------------------ help
     def show_help(self):
-        QtWidgets.QMessageBox.information(
-            self, "使用说明",
-            "1. 文件 → 导入图片：支持 PNG/JPG/TIFF/PDF/SVG/EPS 等。\n"
-            "2. 拖动移动；选中后拖角缩放（默认等比，按住 Shift 临时切换）。\n"
-            "3. 对象 → 添加文字标签：手动加 a/b/c 等编号，双击可多行编辑。\n"
-            "4. 用对齐/分布工具和智能吸附把子图排整齐。\n"
-            "5. 文件 → 导出：PDF 保留矢量；PNG/TIFF 可选最高 1200 DPI。\n"
-            "6. 保存为 .ffp 项目（自带所有素材，可随时再编辑）。")
+        QtWidgets.QMessageBox.information(self, tr("User Guide"), tr("USER_GUIDE"))
 
     def show_about(self):
         from . import __version__
         QtWidgets.QMessageBox.about(
-            self, "关于 FigForge",
-            f"<b>{constants.APP_TITLE}</b> v{__version__}<br><br>"
-            "面向学术论文的轻量图排版工具。<br>"
-            "矢量子图导出 PDF 仍为矢量，位图按原始分辨率嵌入。<br>"
-            "基于 PySide6 + PyMuPDF + Pillow。")
+            self, tr("About") + " FigForge",
+            f"<b>{tr('FigForge — Academic Figure Layout')}</b> v{__version__}<br><br>"
+            + tr("ABOUT_BODY"))
 
     # ------------------------------------------------------------------ close
     def closeEvent(self, event):

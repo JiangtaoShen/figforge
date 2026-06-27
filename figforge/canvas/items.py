@@ -83,6 +83,8 @@ class CanvasItem(QtWidgets.QGraphicsObject):
         self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
         self.setAcceptHoverEvents(True)
+        self._ctrl_drag = False        # Ctrl-drag duplicates
+        self._ctrl_done = False
 
     def name(self):
         return self._name
@@ -239,7 +241,12 @@ class BaseItem(CanvasItem):
                 self._pinned_scene = self.mapToScene(QPointF(fx, fy))
                 event.accept()
                 return
+        self._ctrl_drag = (bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
+                           and event.button() == Qt.MouseButton.LeftButton)
+        self._ctrl_done = False
         super().mousePressEvent(event)
+        if self._ctrl_drag:
+            self.setSelected(True)
 
     def mouseMoveEvent(self, event):
         if self._rotating:
@@ -250,12 +257,18 @@ class BaseItem(CanvasItem):
             self._do_resize(event.scenePos(), event.modifiers())
             event.accept()
             return
+        if self._ctrl_drag and not self._ctrl_done:
+            self._ctrl_done = True
+            sc = self.scene()
+            if sc and hasattr(sc, "ctrlDuplicate"):
+                sc.ctrlDuplicate.emit()
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         active = self._resizing or self._rotating
         self._resizing = None
         self._rotating = False
+        self._ctrl_drag = False
         sc = self.scene()
         if sc and hasattr(sc, "clear_guides"):
             sc.clear_guides()
@@ -483,7 +496,9 @@ class LabelItem(BaseItem):
 
     def font(self):
         f = QtGui.QFont(self.family)
-        f.setPointSizeF(self.size_pt)
+        # pixel size == scene units == PDF points, so on-screen text matches
+        # the exported PDF (point-size would be inflated by screen DPI).
+        f.setPixelSize(max(1, round(self.size_pt)))
         f.setBold(self.bold)
         f.setItalic(self.italic)
         return f
@@ -569,7 +584,7 @@ class TextBoxItem(BaseItem):
     editRequested = Signal(object)
     PAD = 4.0
 
-    def __init__(self, text="文本框", family="Arial", size_pt=3.0,
+    def __init__(self, text="文本框", family="Arial", size_pt=4.0,
                  bold=False, italic=False, color=None, w=170.0, h=90.0):
         super().__init__(resizable=True)
         self._name = "文本框"
@@ -591,7 +606,9 @@ class TextBoxItem(BaseItem):
 
     def font(self):
         f = QtGui.QFont(self.family)
-        f.setPointSizeF(self.size_pt)
+        # pixel size == scene units == PDF points, so on-screen text matches
+        # the exported PDF (point-size would be inflated by screen DPI).
+        f.setPixelSize(max(1, round(self.size_pt)))
         f.setBold(self.bold)
         f.setItalic(self.italic)
         return f
@@ -788,7 +805,12 @@ class LineItem(CanvasItem):
                 self._drag = h
                 event.accept()
                 return
+        self._ctrl_drag = (bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
+                           and event.button() == Qt.MouseButton.LeftButton)
+        self._ctrl_done = False
         super().mousePressEvent(event)
+        if self._ctrl_drag:
+            self.setSelected(True)
 
     def mouseMoveEvent(self, event):
         if self._drag:
@@ -808,6 +830,11 @@ class LineItem(CanvasItem):
             self.geometryChanged.emit()
             event.accept()
             return
+        if self._ctrl_drag and not self._ctrl_done:
+            self._ctrl_done = True
+            sc = self.scene()
+            if sc and hasattr(sc, "ctrlDuplicate"):
+                sc.ctrlDuplicate.emit()
         super().mouseMoveEvent(event)
 
     def _nearest_node(self, scene_pt, scene):
@@ -848,6 +875,7 @@ class LineItem(CanvasItem):
     def mouseReleaseEvent(self, event):
         was = self._drag
         self._drag = None
+        self._ctrl_drag = False
         if not was:
             super().mouseReleaseEvent(event)
         else:

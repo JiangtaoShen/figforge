@@ -6,7 +6,8 @@ import sys
 
 from PySide6 import QtGui, QtWidgets
 
-from . import constants
+from . import constants, i18n
+from .i18n import tr
 from .main_window import MainWindow
 
 
@@ -27,7 +28,8 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     app.setApplicationName(constants.APP_NAME)
     app.setOrganizationName(constants.ORG_NAME)
-    app.setApplicationDisplayName(constants.APP_TITLE)
+    i18n.set_language(i18n.load_saved())          # default English; persists choice
+    app.setApplicationDisplayName(tr("FigForge — Academic Figure Layout"))
     icon = _icon_path()
     if os.path.exists(icon):
         app.setWindowIcon(QtGui.QIcon(icon))

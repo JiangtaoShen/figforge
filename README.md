@@ -32,7 +32,8 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
 - **Layout**: move by dragging; resize from the handles (keeps aspect by default, hold Shift to
   toggle); rotate (drag the rotation handle — Shift for 15° steps, snaps to 0/90/180/270 — or type
   an exact angle); crop (visual box with rule-of-thirds); enter exact millimetre values in the
-  properties panel; smart-guide snapping + optional grid; align / distribute; z-order; duplicate.
+  properties panel; smart-guide snapping + optional grid; align / distribute; z-order;
+  copy / paste (Ctrl+C / Ctrl+V), **Ctrl-drag to duplicate**, and duplicate (Ctrl+D).
 - **Labels / text**: add text labels by hand with common fonts including Chinese
   (Arial, Times New Roman, Calibri, Microsoft YaHei, SimSun…), size, bold / italic, colour,
   alignment; double-click for multi-line editing. Chinese text automatically uses a Chinese
@@ -47,6 +48,8 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
   - **TIFF** — high DPI, LZW compression.
 - **Project file `.ffp`** — a ZIP bundle carrying all assets, so projects survive moving machines
   or originals being relocated.
+- **Languages**: English and 简体中文, switchable from the **Language** menu (the choice is
+  remembered; a fresh install defaults to English).
 - Full undo / redo.
 
 ## Shortcuts
@@ -57,6 +60,7 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
 | Add text label | T |
 | Save / Save As | Ctrl+S / Ctrl+Shift+S |
 | Undo / Redo | Ctrl+Z / Ctrl+Y |
+| Copy / Cut / Paste | Ctrl+C / Ctrl+X / Ctrl+V |
 | Duplicate / Delete / Select all | Ctrl+D / Del / Ctrl+A |
 | Crop selected figure | C |
 | Fit page / Zoom in / Zoom out | Ctrl+0 / Ctrl++ / Ctrl+- |

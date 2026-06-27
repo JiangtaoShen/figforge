@@ -6,6 +6,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 
 from .. import constants
 from ..commands import FuncCommand, GeometryCommand
+from ..i18n import tr
 from .items import BaseItem, CanvasItem
 
 _DESK = QtGui.QColor(74, 76, 82)
@@ -17,6 +18,7 @@ _GUIDE = QtGui.QColor(255, 40, 170)
 
 class PageScene(QtWidgets.QGraphicsScene):
     sceneEdited = Signal()
+    ctrlDuplicate = Signal()        # Ctrl-drag on an item requests a copy
 
     def __init__(self, page=constants.DEFAULT_PAGE, orientation=constants.PORTRAIT):
         super().__init__()
@@ -82,7 +84,7 @@ class PageScene(QtWidgets.QGraphicsScene):
         """Undo for move / resize / rotate (full 5-tuple state)."""
         if self.undo_stack is not None:
             self.undo_stack.push(FuncCommand(
-                "移动 / 缩放 / 旋转",
+                tr("Move / Resize / Rotate"),
                 lambda: item.set_state(new),
                 lambda: item.set_state(old)))
 

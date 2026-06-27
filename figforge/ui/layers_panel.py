@@ -4,6 +4,7 @@ from __future__ import annotations
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from ..canvas.items import FigureItem
+from ..i18n import tr
 
 
 class LayersPanel(QtWidgets.QWidget):
@@ -23,11 +24,11 @@ class LayersPanel(QtWidgets.QWidget):
 
         bar = QtWidgets.QHBoxLayout()
         for text, tip, slot in (
-            ("⤒", "置于顶层", lambda: self.main.change_z("front")),
-            ("↑", "上移一层", lambda: self.main.change_z("up")),
-            ("↓", "下移一层", lambda: self.main.change_z("down")),
-            ("⤓", "置于底层", lambda: self.main.change_z("back")),
-            ("🗑", "删除", self.main.delete_selected),
+            ("⤒", tr("Bring to front"), lambda: self.main.change_z("front")),
+            ("↑", tr("Bring forward"), lambda: self.main.change_z("up")),
+            ("↓", tr("Send backward"), lambda: self.main.change_z("down")),
+            ("⤓", tr("Send to back"), lambda: self.main.change_z("back")),
+            ("🗑", tr("Delete"), self.main.delete_selected),
         ):
             b = QtWidgets.QToolButton()
             b.setText(text)

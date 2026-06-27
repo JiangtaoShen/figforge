@@ -6,6 +6,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from .. import constants, fonts
 from ..canvas.items import FigureItem, LabelItem, LineItem, TextBoxItem
 from ..commands import FuncCommand
+from ..i18n import tr
 
 _MM = constants.MM_PER_PT
 _PT = constants.PT_PER_MM
@@ -43,12 +44,12 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         lay.setContentsMargins(8, 8, 8, 8)
         lay.setSpacing(10)
 
-        self.lbl_kind = QtWidgets.QLabel("（未选择对象）")
+        self.lbl_kind = QtWidgets.QLabel(tr("(no selection)"))
         self.lbl_kind.setStyleSheet("font-weight:600;")
         lay.addWidget(self.lbl_kind)
 
         # --- geometry ---------------------------------------------------
-        self.box_geom = QtWidgets.QGroupBox("位置与大小")
+        self.box_geom = QtWidgets.QGroupBox(tr("Position & Size"))
         g = QtWidgets.QFormLayout(self.box_geom)
         self.spin_x = self._spin()
         self.spin_y = self._spin()
@@ -58,9 +59,9 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         self.spin_rot.setWrapping(True)
         g.addRow("X", self.spin_x)
         g.addRow("Y", self.spin_y)
-        g.addRow("宽", self.spin_w)
-        g.addRow("高", self.spin_h)
-        g.addRow("旋转", self.spin_rot)
+        g.addRow(tr("W"), self.spin_w)
+        g.addRow(tr("H"), self.spin_h)
+        g.addRow(tr("Rotation"), self.spin_rot)
         lay.addWidget(self.box_geom)
         self.spin_x.editingFinished.connect(self._apply_geometry)
         self.spin_y.editingFinished.connect(self._apply_geometry)
@@ -69,18 +70,18 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         self.spin_rot.editingFinished.connect(self._apply_rotation)
 
         # --- image options ----------------------------------------------
-        self.box_image = QtWidgets.QGroupBox("图片选项")
+        self.box_image = QtWidgets.QGroupBox(tr("Image"))
         ig = QtWidgets.QFormLayout(self.box_image)
-        self.chk_aspect = QtWidgets.QCheckBox("锁定宽高比")
-        self.btn_crop = QtWidgets.QPushButton("裁剪…")
+        self.chk_aspect = QtWidgets.QCheckBox(tr("Lock aspect ratio"))
+        self.btn_crop = QtWidgets.QPushButton(tr("Crop…"))
         ig.addRow("", self.chk_aspect)
-        ig.addRow("裁剪", self.btn_crop)
+        ig.addRow(tr("Crop"), self.btn_crop)
         lay.addWidget(self.box_image)
         self.chk_aspect.toggled.connect(self._aspect_toggled)
         self.btn_crop.clicked.connect(self._open_crop)
 
         # --- text style (label + text box) ------------------------------
-        self.box_text = QtWidgets.QGroupBox("文字")
+        self.box_text = QtWidgets.QGroupBox(tr("Text"))
         f = QtWidgets.QFormLayout(self.box_text)
         self.ed_text = QtWidgets.QLineEdit()
         self.cmb_font = QtWidgets.QComboBox()
@@ -100,39 +101,39 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         srow.addStretch(1)
         sw = QtWidgets.QWidget()
         sw.setLayout(srow)
-        self.btn_color = QtWidgets.QPushButton("颜色")
+        self.btn_color = QtWidgets.QPushButton(tr("Color"))
         self.cmb_align = QtWidgets.QComboBox()
-        self.cmb_align.addItems(["左对齐", "居中", "右对齐"])
-        f.addRow("文字", self.ed_text)
-        f.addRow("字体", self.cmb_font)
-        f.addRow("字号", self.spin_size)
-        f.addRow("样式", sw)
-        f.addRow("颜色", self.btn_color)
-        f.addRow("对齐", self.cmb_align)
+        self.cmb_align.addItems([tr("Left"), tr("Center"), tr("Right")])
+        f.addRow(tr("Text"), self.ed_text)
+        f.addRow(tr("Font"), self.cmb_font)
+        f.addRow(tr("Size"), self.spin_size)
+        f.addRow(tr("Style"), sw)
+        f.addRow(tr("Color"), self.btn_color)
+        f.addRow(tr("Align"), self.cmb_align)
         lay.addWidget(self.box_text)
-        self.ed_text.editingFinished.connect(self._apply_text)
-        self.cmb_font.currentIndexChanged.connect(self._apply_text)
-        self.spin_size.editingFinished.connect(self._apply_text)
-        self.btn_bold.toggled.connect(self._apply_text)
-        self.btn_italic.toggled.connect(self._apply_text)
-        self.cmb_align.currentIndexChanged.connect(self._apply_text)
+        self.ed_text.editingFinished.connect(self._apply_content)
+        self.cmb_font.currentIndexChanged.connect(self._apply_style)
+        self.spin_size.editingFinished.connect(self._apply_style)
+        self.btn_bold.toggled.connect(self._apply_style)
+        self.btn_italic.toggled.connect(self._apply_style)
+        self.cmb_align.currentIndexChanged.connect(self._apply_style)
         self.btn_color.clicked.connect(self._pick_text_color)
 
         # --- text-box frame (border / fill) -----------------------------
-        self.box_frame = QtWidgets.QGroupBox("文本框边框 / 填充")
+        self.box_frame = QtWidgets.QGroupBox(tr("Text Box Border / Fill"))
         bf = QtWidgets.QFormLayout(self.box_frame)
-        self.chk_border = QtWidgets.QCheckBox("显示边框")
+        self.chk_border = QtWidgets.QCheckBox(tr("Show border"))
         self.spin_bw = self._spin(0, 20, 1, " pt", 0.5)
-        self.btn_border_color = QtWidgets.QPushButton("边框颜色")
-        self.chk_fill = QtWidgets.QCheckBox("填充背景")
-        self.btn_fill_color = QtWidgets.QPushButton("填充颜色")
+        self.btn_border_color = QtWidgets.QPushButton(tr("Border color"))
+        self.chk_fill = QtWidgets.QCheckBox(tr("Fill background"))
+        self.btn_fill_color = QtWidgets.QPushButton(tr("Fill color"))
         self.spin_alpha = self._spin(0, 100, 0, " %", 5)
         bf.addRow("", self.chk_border)
-        bf.addRow("线宽", self.spin_bw)
+        bf.addRow(tr("Width"), self.spin_bw)
         bf.addRow("", self.btn_border_color)
         bf.addRow("", self.chk_fill)
         bf.addRow("", self.btn_fill_color)
-        bf.addRow("背景透明度", self.spin_alpha)
+        bf.addRow(tr("Background transparency"), self.spin_alpha)
         lay.addWidget(self.box_frame)
         self.chk_border.toggled.connect(self._apply_frame)
         self.spin_bw.editingFinished.connect(self._apply_frame)
@@ -142,18 +143,18 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         self.spin_alpha.editingFinished.connect(self._apply_frame)
 
         # --- line -------------------------------------------------------
-        self.box_line = QtWidgets.QGroupBox("线条")
+        self.box_line = QtWidgets.QGroupBox(tr("Line"))
         lf = QtWidgets.QFormLayout(self.box_line)
-        self.btn_line_color = QtWidgets.QPushButton("颜色")
+        self.btn_line_color = QtWidgets.QPushButton(tr("Color"))
         self.spin_lw = self._spin(0.1, 50, 1, " pt", 0.5)
         self.cmb_style = QtWidgets.QComboBox()
-        self.cmb_style.addItems(["实线", "虚线"])
+        self.cmb_style.addItems([tr("Solid"), tr("Dashed")])
         self.cmb_arrow = QtWidgets.QComboBox()
-        self.cmb_arrow.addItems(["无箭头", "末端箭头", "两端箭头"])
-        lf.addRow("颜色", self.btn_line_color)
-        lf.addRow("线宽", self.spin_lw)
-        lf.addRow("线型", self.cmb_style)
-        lf.addRow("箭头", self.cmb_arrow)
+        self.cmb_arrow.addItems([tr("None"), tr("End"), tr("Both")])
+        lf.addRow(tr("Color"), self.btn_line_color)
+        lf.addRow(tr("Width"), self.spin_lw)
+        lf.addRow(tr("Line style"), self.cmb_style)
+        lf.addRow(tr("Arrow"), self.cmb_arrow)
         lay.addWidget(self.box_line)
         self.btn_line_color.clicked.connect(self._pick_line_color)
         self.spin_lw.editingFinished.connect(self._apply_line)
@@ -189,18 +190,19 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         self.box_line.setVisible(is_line)
 
         if single is None:
-            self.lbl_kind.setText("多选对象（用对齐工具）" if items else "（未选择对象）")
-            self.info.setText("提示：拖动移动；选中后拖角缩放，拖顶部圆点旋转。")
+            self.lbl_kind.setText(
+                tr("Multiple selected (use align tools)") if items else tr("(no selection)"))
+            self.info.setText(tr("Drag to move; drag a corner to resize, the top dot to rotate."))
             return
 
         self.spin_w.setEnabled(is_fig or is_tb)
         self.spin_h.setEnabled(is_fig or is_tb)
         self.spin_rot.setEnabled(is_fig or is_tb)
 
-        kind = {"FigureItem": "图片", "LabelItem": "标签",
-                "TextBoxItem": "文本框", "LineItem": "线条"}.get(
-                    type(single).__name__, "对象")
-        self.lbl_kind.setText(f"{kind}：{single.name()}")
+        kind = {"FigureItem": tr("Image"), "LabelItem": tr("Label"),
+                "TextBoxItem": tr("Text Box"), "LineItem": tr("Line")}.get(
+                    type(single).__name__, "")
+        self.lbl_kind.setText(tr("{0}: {1}").format(kind, single.name()))
 
         if not is_line:
             self._load_geometry()
@@ -212,18 +214,26 @@ class PropertiesPanel(QtWidgets.QScrollArea):
             self._load_line()
 
         if is_fig:
-            self.info.setText("来源：" + ("矢量" if single._source_kind == "vector" else "位图"))
+            src = tr("vector") if single._source_kind == "vector" else tr("raster")
+            self.info.setText(tr("Source: {0}").format(src))
         elif is_line:
-            self.info.setText("选中后拖两端圆点可调整线条。")
+            self.info.setText(tr("Drag the end dots to adjust the line."))
         else:
-            self.info.setText("双击对象可多行编辑文字。")
+            self.info.setText(tr("Double-click the object to edit text."))
 
         self._geom_conn = single
         single.geometryChanged.connect(self._on_item_geom)
 
     def _on_item_geom(self):
-        if self._item is not None and not isinstance(self._item, LineItem):
+        it = self._item
+        if it is None:
+            return
+        if not isinstance(it, LineItem):
             self._load_geometry()
+        if isinstance(it, (LabelItem, TextBoxItem)) and not self.ed_text.hasFocus():
+            self._loading = True
+            self.ed_text.setText(it.text)
+            self._loading = False
 
     # ------------------------------------------------------------- loaders
     def _load_geometry(self):
@@ -294,7 +304,7 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         new = (self.spin_x.value() * _PT, self.spin_y.value() * _PT, w, h, old[4])
         if new == old:
             return
-        self._push(FuncCommand("修改几何",
+        self._push(FuncCommand(tr("Modify geometry"),
                                lambda: it.set_state(new),
                                lambda: it.set_state(old)))
 
@@ -320,7 +330,7 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         new = (old[0], old[1], old[2], old[3], self.spin_rot.value())
         if new == old:
             return
-        self._push(FuncCommand("旋转",
+        self._push(FuncCommand(tr("Modify rotation"),
                                lambda: it.set_state(new),
                                lambda: it.set_state(old)))
 
@@ -338,39 +348,47 @@ class PropertiesPanel(QtWidgets.QScrollArea):
             return
         old, new = it.crop, dlg.get_crop()
         if new != old:
-            self._push(FuncCommand("裁剪",
+            self._push(FuncCommand(tr("Crop"),
                                    lambda: it.set_crop(new),
                                    lambda: it.set_crop(old)))
 
-    def _apply_text(self):
+    def _apply_content(self):
+        it = self._item
+        if self._loading or not isinstance(it, (LabelItem, TextBoxItem)):
+            return
+        old, new = it.text, self.ed_text.text()
+        if new == old:
+            return
+        self._push(FuncCommand(tr("Edit text"),
+                               lambda: it.set_text(new),
+                               lambda: it.set_text(old)))
+
+    def _apply_style(self):
         it = self._item
         if self._loading or not isinstance(it, (LabelItem, TextBoxItem)):
             return
         before = it.to_dict()
         align = {0: "left", 1: "center", 2: "right"}[self.cmb_align.currentIndex()]
-        nt = self.ed_text.text()
         new = dict(family=self.cmb_font.currentText(), size_pt=self.spin_size.value(),
                    bold=self.btn_bold.isChecked(), italic=self.btn_italic.isChecked(),
                    color=QtGui.QColor(self._color), align=align)
 
         def do():
-            it.set_text(nt)
             it.apply_style(**new)
 
         def undo():
-            it.set_text(before["text"])
             it.apply_style(family=before["family"], size_pt=before["size_pt"],
                            bold=before["bold"], italic=before["italic"],
                            color=QtGui.QColor(before["color"]), align=before["align"])
 
-        self._push(FuncCommand("修改文字", do, undo))
+        self._push(FuncCommand(tr("Modify text style"), do, undo))
 
     def _pick_text_color(self):
-        c = QtWidgets.QColorDialog.getColor(self._color, self, "文字颜色")
+        c = QtWidgets.QColorDialog.getColor(self._color, self, tr("Color"))
         if c.isValid():
             self._color = c
             self._tint(self.btn_color, c)
-            self._apply_text()
+            self._apply_style()
 
     def _apply_frame(self):
         it = self._item
@@ -392,11 +410,11 @@ class PropertiesPanel(QtWidgets.QScrollArea):
                            fill=before["fill"], fill_color=QtGui.QColor(before["fill_color"]),
                            fill_opacity=before["fill_opacity"])
 
-        self._push(FuncCommand("修改文本框", do, undo))
+        self._push(FuncCommand(tr("Modify text box"), do, undo))
 
     def _pick_frame_color(self, which):
         cur = self._border_color if which == "border" else self._fill_color
-        c = QtWidgets.QColorDialog.getColor(cur, self, "选择颜色")
+        c = QtWidgets.QColorDialog.getColor(cur, self, tr("Color"))
         if not c.isValid():
             return
         if which == "border":
@@ -417,12 +435,12 @@ class PropertiesPanel(QtWidgets.QScrollArea):
                    dashed=self.cmb_style.currentIndex() == 1,
                    arrow={0: "none", 1: "end", 2: "both"}[self.cmb_arrow.currentIndex()])
 
-        self._push(FuncCommand("修改线条",
+        self._push(FuncCommand(tr("Modify line"),
                                lambda: it.apply_style(**new),
                                lambda: it.apply_style(**before)))
 
     def _pick_line_color(self):
-        c = QtWidgets.QColorDialog.getColor(self._line_color, self, "线条颜色")
+        c = QtWidgets.QColorDialog.getColor(self._line_color, self, tr("Color"))
         if c.isValid():
             self._line_color = c
             self._tint(self.btn_line_color, c)

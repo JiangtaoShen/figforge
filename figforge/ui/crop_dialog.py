@@ -4,6 +4,8 @@ from __future__ import annotations
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import QPointF, QRectF, Qt
 
+from ..i18n import tr
+
 _HANDLES = ("nw", "n", "ne", "e", "se", "s", "sw", "w")
 _MIN = 8.0
 
@@ -148,7 +150,7 @@ class _CropScene(QtWidgets.QGraphicsScene):
 class CropDialog(QtWidgets.QDialog):
     def __init__(self, parent, pixmap: QtGui.QPixmap, crop):
         super().__init__(parent)
-        self.setWindowTitle("裁剪图片")
+        self.setWindowTitle(tr("Crop Image"))
         self.resize(620, 560)
         pw, ph = pixmap.width(), pixmap.height()
         self.bounds = QRectF(0, 0, pw, ph)
@@ -163,10 +165,10 @@ class CropDialog(QtWidgets.QDialog):
         self.view.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
 
         lay = QtWidgets.QVBoxLayout(self)
-        lay.addWidget(QtWidgets.QLabel("拖动方框选择保留区域："))
+        lay.addWidget(QtWidgets.QLabel(tr("Drag the box to choose the area to keep:")))
         lay.addWidget(self.view, 1)
         bb = QtWidgets.QDialogButtonBox()
-        reset = bb.addButton("重置", QtWidgets.QDialogButtonBox.ButtonRole.ResetRole)
+        reset = bb.addButton(tr("Reset"), QtWidgets.QDialogButtonBox.ButtonRole.ResetRole)
         bb.addButton(QtWidgets.QDialogButtonBox.StandardButton.Ok)
         bb.addButton(QtWidgets.QDialogButtonBox.StandardButton.Cancel)
         reset.clicked.connect(self._reset)
