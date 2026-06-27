@@ -7,6 +7,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import Qt
 
 from . import constants, fonts
+from .icons import build_icons
 from .canvas.items import FigureItem, LabelItem
 from .canvas.scene import PageScene
 from .canvas.view import CanvasView
@@ -98,14 +99,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, d2)
 
     # --------------------------------------------------------------- actions
-    def _act(self, text, slot, shortcut=None, tip=None):
+    def _act(self, text, slot, shortcut=None, tip=None, icon=None):
         a = QtGui.QAction(text, self)
+        if icon is not None:
+            a.setIcon(icon)
         a.triggered.connect(slot)
         if shortcut:
             a.setShortcut(shortcut)
-        if tip:
-            a.setToolTip(tip)
-            a.setStatusTip(tip)
+        tip_text = tip or text
+        sc = a.shortcut().toString()
+        if sc:
+            tip_text = f"{tip_text}  ({sc})"
+        a.setToolTip(tip_text)        # shown on hover (icon-only toolbar)
+        a.setStatusTip(tip or text)
         return a
 
     def _build_actions(self):
@@ -153,6 +159,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.a_fit = self._act("适应页面", self.view.fit_page, "Ctrl+0")
         self.a_reset_zoom = self._act("实际大小 100%", self.view.reset_zoom)
 
+        # attach line-art icons (also appear next to the menu items)
+        ic = build_icons(self.palette().color(QtGui.QPalette.ColorRole.WindowText))
+        for act, key in (
+            (self.a_import, "import"), (self.a_add_label, "text"),
+            (self.a_crop, "crop"),
+            (self.a_rot_l, "rotate_left"), (self.a_rot_r, "rotate_right"),
+            (self.a_al_left, "align_left"), (self.a_al_hc, "align_hcenter"),
+            (self.a_al_right, "align_right"), (self.a_al_top, "align_top"),
+            (self.a_al_vm, "align_vmiddle"), (self.a_al_bottom, "align_bottom"),
+            (self.a_front, "front"), (self.a_up, "forward"),
+            (self.a_down, "backward"), (self.a_back, "back"),
+            (self.a_exp_pdf, "export_pdf"), (self.a_exp_png, "export_png"),
+        ):
+            act.setIcon(ic[key])
+
     def _build_menus(self):
         mb = self.menuBar()
         m = mb.addMenu("文件")
@@ -193,7 +214,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _build_toolbars(self):
         tb = self.addToolBar("主工具栏")
-        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        tb.setIconSize(QtCore.QSize(22, 22))
         tb.addAction(self.a_import)
         tb.addAction(self.a_add_label)
         tb.addSeparator()
