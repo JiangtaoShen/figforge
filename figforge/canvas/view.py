@@ -6,6 +6,7 @@ import os
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import Qt, Signal
 
+from .. import constants
 from ..fileio.importers import ALL_EXTS
 
 
@@ -13,6 +14,8 @@ class CanvasView(QtWidgets.QGraphicsView):
     zoomChanged = Signal(float)          # percent
     cursorMoved = Signal(float, float)   # scene x, y (points)
     filesDropped = Signal(list, QtCore.QPointF)   # paths, scene position
+    nudge = Signal(float, float)         # dx, dy in points (arrow keys)
+    contextMenu = Signal(QtCore.QPoint)  # global pos (right-click)
 
     def __init__(self, scene):
         super().__init__(scene)
@@ -101,10 +104,24 @@ class CanvasView(QtWidgets.QGraphicsView):
             super().wheelEvent(event)
 
     # ---- pan (space-drag or middle button) ------------------------------
+    _ARROWS = {Qt.Key.Key_Left: (-1, 0), Qt.Key.Key_Right: (1, 0),
+               Qt.Key.Key_Up: (0, -1), Qt.Key.Key_Down: (0, 1)}
+
     def keyPressEvent(self, event):
+        if event.key() in self._ARROWS:
+            fine = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
+            step = constants.mm_to_pt(
+                constants.NUDGE_FINE_MM if fine else constants.NUDGE_MM)
+            sx, sy = self._ARROWS[event.key()]
+            self.nudge.emit(sx * step, sy * step)
+            event.accept()
+            return
         if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
             self.setDragMode(QtWidgets.QGraphicsView.DragMode.ScrollHandDrag)
         super().keyPressEvent(event)
+
+    def contextMenuEvent(self, event):
+        self.contextMenu.emit(event.globalPos())
 
     def keyReleaseEvent(self, event):
         if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():

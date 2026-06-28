@@ -102,7 +102,9 @@ _ZH = {
     "Reorder": "调整层叠", "Distribute": "分布", "Modify geometry": "修改几何",
     "Edit text": "编辑文字", "Modify text style": "修改文字样式",
     "Modify text box": "修改文本框", "Modify line": "修改线条",
-    "Drag-duplicate": "拖动复制", "Modify rotation": "旋转",
+    "Drag-duplicate": "拖动复制", "Modify rotation": "旋转", "Move": "移动",
+    "Bind Size (same size)": "绑定尺寸（大小一致）", "Unbind Size": "解除尺寸绑定",
+    "Bind Size": "绑定尺寸",
     "Language changed": "语言已切换",
     "The language will switch after restarting. Restart now?":
         "语言将在重启后生效。现在重启吗？",

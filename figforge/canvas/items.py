@@ -389,6 +389,7 @@ class FigureItem(BaseItem):
         self._vec_bytes = source.vec_pdf_bytes
         self._asset_name: str | None = None
         self.crop = (0.0, 0.0, 1.0, 1.0)          # normalized l,t,r,b
+        self.size_group = None                    # id shared by size-locked figures
         self._w = source.width_pt
         self._h = source.height_pt
 
@@ -464,7 +465,7 @@ class FigureItem(BaseItem):
         d = self.base_dict()
         d.update({"type": "figure", "asset": self._asset_name,
                   "source_kind": self._source_kind, "page_index": self._page_index,
-                  "crop": list(self.crop)})
+                  "crop": list(self.crop), "size_group": self.size_group})
         return d
 
     @classmethod
@@ -472,6 +473,7 @@ class FigureItem(BaseItem):
         source = load_source(asset_path, d.get("page_index", 0))
         item = cls(source, name=d.get("name", "Figure"))
         item.crop = tuple(d.get("crop", (0.0, 0.0, 1.0, 1.0)))
+        item.size_group = d.get("size_group")
         item.apply_base_dict(d)
         return item
 

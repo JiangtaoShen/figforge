@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import Qt
@@ -72,6 +73,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._line_count = 0
         self._clipboard = []
         self._paste_count = 0
+        self._syncing_size = False
 
         self._build_docks()
         self._build_actions()
@@ -87,6 +89,8 @@ class MainWindow(QtWidgets.QMainWindow):
             lambda p: self.lbl_zoom.setText(tr("Zoom {0}%").format(round(p))))
         self.view.cursorMoved.connect(self._on_cursor)
         self.view.filesDropped.connect(self.on_files_dropped)
+        self.view.nudge.connect(self.nudge_selected)
+        self.view.contextMenu.connect(self._show_context_menu)
 
         self.resize(1280, 840)
         self._update_title()
@@ -152,6 +156,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.a_rot_l = self._act(tr("Rotate Left 90°"), lambda: self.rotate_selected(-90))
         self.a_rot_r = self._act(tr("Rotate Right 90°"), lambda: self.rotate_selected(90))
         self.a_rot_reset = self._act(tr("Reset Rotation"), self.reset_rotation)
+        self.a_bind_size = self._act(tr("Bind Size (same size)"), self.bind_sizes)
+        self.a_unbind_size = self._act(tr("Unbind Size"), self.unbind_sizes)
 
         self.a_al_left = self._act(tr("Align Left"), lambda: self.align("left"))
         self.a_al_hc = self._act(tr("Align Center"), lambda: self.align("hcenter"))
@@ -211,6 +217,9 @@ class MainWindow(QtWidgets.QMainWindow):
         m.addAction(self.a_add_textbox)
         m.addAction(self.a_add_line)
         m.addAction(self.a_crop)
+        m.addSeparator()
+        m.addAction(self.a_bind_size)
+        m.addAction(self.a_unbind_size)
         m.addSeparator()
         sub = m.addMenu(tr("Align"))
         sub.addActions([self.a_al_left, self.a_al_hc, self.a_al_right])
@@ -307,6 +316,8 @@ class MainWindow(QtWidgets.QMainWindow):
             item.editRequested.connect(self.edit_text)
         if isinstance(item, BaseItem):
             item.geometryChanged.connect(self._update_line_anchors)
+        if isinstance(item, FigureItem):
+            item.geometryChanged.connect(lambda it=item: self._sync_size_group(it))
 
     def _update_line_anchors(self):
         for it in self.scene.iter_items():
@@ -593,6 +604,95 @@ class MainWindow(QtWidgets.QMainWindow):
         self.undo_stack.beginMacro(tr("Drag-duplicate"))
         self._place_copies(sel, 0, select_copies=False)
         self.undo_stack.endMacro()
+
+    def nudge_selected(self, dx, dy):
+        items = self._selected()
+        if not items:
+            return
+
+        def shift(ddx, ddy):
+            se = self.scene.snap_enabled
+            self.scene.snap_enabled = False
+            for it in items:
+                it.setPos(it.pos().x() + ddx, it.pos().y() + ddy)
+            self.scene.snap_enabled = se
+
+        self._push(FuncCommand(tr("Move"),
+                               lambda: shift(dx, dy),
+                               lambda: shift(-dx, -dy)))
+
+    # ------------------------------------------------------------- size bind
+    def bind_sizes(self):
+        figs = [it for it in self._selected() if isinstance(it, FigureItem)]
+        if len(figs) < 2:
+            return
+        w, h = figs[0].size()
+        gid = uuid.uuid4().hex
+        before = [(it, it.size_group, it.get_state()) for it in figs]
+
+        def do():
+            for it in figs:
+                it.size_group = gid
+                x, y, _, _, rot = it.get_state()
+                it.set_state((x, y, w, h, rot))
+
+        def undo():
+            for it, g, st in before:
+                it.size_group = g
+                it.set_state(st)
+
+        self._push(FuncCommand(tr("Bind Size"), do, undo))
+
+    def unbind_sizes(self):
+        figs = [it for it in self._selected()
+                if isinstance(it, FigureItem) and it.size_group]
+        if not figs:
+            return
+        before = [(it, it.size_group) for it in figs]
+
+        def do():
+            for it in figs:
+                it.size_group = None
+
+        def undo():
+            for it, g in before:
+                it.size_group = g
+
+        self._push(FuncCommand(tr("Unbind Size"), do, undo))
+
+    def _sync_size_group(self, item):
+        gid = getattr(item, "size_group", None)
+        if not gid or self._syncing_size:
+            return
+        w, h = item.size()
+        self._syncing_size = True
+        try:
+            for it in self.scene.iter_items():
+                if (isinstance(it, FigureItem) and it is not item
+                        and it.size_group == gid and (it._w, it._h) != (w, h)):
+                    x, y, _, _, rot = it.get_state()
+                    it.set_state((x, y, w, h, rot))
+        finally:
+            self._syncing_size = False
+
+    def _show_context_menu(self, global_pos):
+        menu = QtWidgets.QMenu(self)
+        sel = self._selected()
+        figs = [it for it in sel if isinstance(it, FigureItem)]
+        if len(figs) >= 2:
+            menu.addAction(self.a_bind_size)
+        if any(it.size_group for it in figs):
+            menu.addAction(self.a_unbind_size)
+        if sel:
+            if not menu.isEmpty():
+                menu.addSeparator()
+            menu.addAction(self.a_copy)
+            menu.addAction(self.a_duplicate)
+            menu.addAction(self.a_delete)
+        if self._clipboard:
+            menu.addAction(self.a_paste)
+        if not menu.isEmpty():
+            menu.exec(global_pos)
 
     def change_z(self, mode):
         sel = self._selected()

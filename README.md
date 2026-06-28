@@ -34,6 +34,9 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
   an exact angle); crop (visual box with rule-of-thirds); enter exact millimetre values in the
   properties panel; smart-guide snapping + optional grid; align / distribute; z-order;
   copy / paste (Ctrl+C / Ctrl+V), **Ctrl-drag to duplicate**, and duplicate (Ctrl+D).
+  Arrow keys nudge the selection (**Ctrl+arrows** for fine steps).
+- **Same-size binding**: Ctrl-click several images to select them, right-click → **Bind Size** —
+  resizing any one then keeps all bound images exactly the same size.
 - **Labels / text**: add text labels by hand with common fonts including Chinese
   (Arial, Times New Roman, Calibri, Microsoft YaHei, SimSun…), size, bold / italic, colour,
   alignment; double-click for multi-line editing. Chinese text automatically uses a Chinese
@@ -62,6 +65,7 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
 | Undo / Redo | Ctrl+Z / Ctrl+Y |
 | Copy / Cut / Paste | Ctrl+C / Ctrl+X / Ctrl+V |
 | Duplicate / Delete / Select all | Ctrl+D / Del / Ctrl+A |
+| Nudge / Fine nudge | Arrows / Ctrl+Arrows |
 | Crop selected figure | C |
 | Fit page / Zoom in / Zoom out | Ctrl+0 / Ctrl++ / Ctrl+- |
 | Zoom (Ctrl+wheel), Pan (Space-drag or middle-drag) | |

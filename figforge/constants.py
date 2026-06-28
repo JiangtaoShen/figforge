@@ -55,6 +55,8 @@ SNAP_THRESHOLD_PX = 7.0       # snap distance measured in on-screen pixels
 ANCHOR_THRESHOLD_PX = 11.0    # line-endpoint -> object-node snap distance
 MIN_ITEM_PT = 4.0            # smallest allowed item dimension
 HANDLE_PX = 8.0             # resize-handle size in on-screen pixels
+NUDGE_MM = 1.0             # arrow-key move step
+NUDGE_FINE_MM = 0.2        # Ctrl+arrow fine move step
 
 # ---- project ---------------------------------------------------------------
 PROJECT_EXT = ".ffp"
