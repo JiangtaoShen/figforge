@@ -304,9 +304,14 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         new = (self.spin_x.value() * _PT, self.spin_y.value() * _PT, w, h, old[4])
         if new == old:
             return
+        scene = self.main.scene
+
+        def apply(state):
+            with scene.no_snap():        # typed values are exact — don't snap
+                it.set_state(state)
+
         self._push(FuncCommand(tr("Modify geometry"),
-                               lambda: it.set_state(new),
-                               lambda: it.set_state(old)))
+                               lambda: apply(new), lambda: apply(old)))
 
     def _wh_edited(self, which):
         it = self._item

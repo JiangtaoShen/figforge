@@ -26,8 +26,14 @@ class FontRegistry:
         return resolved.fontname
 
 
-def build_document(scene, white_bg: bool = True):
-    """Return (doc, keep_open). Caller must save then close both."""
+def build_document(scene, white_bg: bool = True,
+                   crop_margin_pt: float | None = None):
+    """Return (doc, keep_open). Caller must save then close both.
+
+    ``crop_margin_pt`` — when not None, the page CropBox is shrunk to the
+    content bounding box expanded by that margin (clamped to the page), so
+    the exported figure has no unnecessary white borders.
+    """
     out = fitz.open()
     page = out.new_page(width=scene.page_w, height=scene.page_h)
     if white_bg:
@@ -37,6 +43,15 @@ def build_document(scene, white_bg: bool = True):
     keep_open: list = []
     for item in scene.iter_items():          # ascending z: back to front
         item.render_to_pdf(page, fontreg, keep_open)
+    if crop_margin_pt is not None:
+        r = scene.content_rect()
+        if r is not None:
+            m = max(0.0, float(crop_margin_pt))
+            crop = fitz.Rect(r.left() - m, r.top() - m,
+                             r.right() + m, r.bottom() + m)
+            crop.intersect(page.rect)
+            if not crop.is_empty:
+                page.set_cropbox(crop)
     return out, keep_open
 
 
@@ -49,16 +64,20 @@ def _close(out, keep_open):
     out.close()
 
 
-def export_pdf(scene, path: str, white_bg: bool = True):
-    out, keep = build_document(scene, white_bg=white_bg)
+def export_pdf(scene, path: str, white_bg: bool = True,
+               crop_margin_pt: float | None = None):
+    out, keep = build_document(scene, white_bg=white_bg,
+                               crop_margin_pt=crop_margin_pt)
     try:
         out.save(path, garbage=4, deflate=True, clean=True)
     finally:
         _close(out, keep)
 
 
-def export_png(scene, path: str, dpi: int = 600, transparent: bool = False):
-    out, keep = build_document(scene, white_bg=not transparent)
+def export_png(scene, path: str, dpi: int = 600, transparent: bool = False,
+               crop_margin_pt: float | None = None):
+    out, keep = build_document(scene, white_bg=not transparent,
+                               crop_margin_pt=crop_margin_pt)
     try:
         pix = out[0].get_pixmap(dpi=dpi, alpha=transparent)
         pix.save(path)
@@ -66,9 +85,11 @@ def export_png(scene, path: str, dpi: int = 600, transparent: bool = False):
         _close(out, keep)
 
 
-def export_tiff(scene, path: str, dpi: int = 600):
+def export_tiff(scene, path: str, dpi: int = 600,
+                crop_margin_pt: float | None = None):
     from PIL import Image
-    out, keep = build_document(scene, white_bg=True)
+    out, keep = build_document(scene, white_bg=True,
+                               crop_margin_pt=crop_margin_pt)
     try:
         pix = out[0].get_pixmap(dpi=dpi, alpha=False)
         img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)

@@ -79,18 +79,38 @@ class CanvasItem(QtWidgets.QGraphicsObject):
         super().__init__()
         self._name = "Item"
         self.uid = uuid.uuid4().hex
+        self.locked = False
         self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
         self.setAcceptHoverEvents(True)
         self._ctrl_drag = False        # Ctrl-drag duplicates
         self._ctrl_done = False
+        self._sel_at_press = False     # for Ctrl-click deselect
 
     def name(self):
         return self._name
 
     def set_name(self, name):
         self._name = name
+
+    def set_locked(self, on: bool):
+        """Locked items cannot be selected or moved on the canvas."""
+        self.locked = bool(on)
+        self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable,
+                     not self.locked)
+        self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable,
+                     not self.locked)
+        if self.locked:
+            self.setSelected(False)
+        self.update()
+        sc = self.scene()
+        if sc is not None and hasattr(sc, "sceneEdited"):
+            sc.sceneEdited.emit()
+
+    def content_scene_rect(self) -> QRectF:
+        """Scene-space bbox of the *content* only (no handle padding)."""
+        return self.sceneBoundingRect()
 
 
 class BaseItem(CanvasItem):
@@ -114,6 +134,10 @@ class BaseItem(CanvasItem):
 
     def scene_rect(self) -> QRectF:
         return QRectF(self.pos().x(), self.pos().y(), self._w, self._h)
+
+    def content_scene_rect(self) -> QRectF:
+        # maps the unrotated content frame; correct for rotated items too
+        return self.mapToScene(QRectF(0, 0, self._w, self._h)).boundingRect()
 
     def get_geometry(self):
         return (self.pos().x(), self.pos().y(), self._w, self._h)
@@ -226,6 +250,7 @@ class BaseItem(CanvasItem):
     # ---- mouse -----------------------------------------------------------
     def mousePressEvent(self, event):
         self._state_at_press = self.get_state()
+        self._sel_at_press = self.isSelected()
         if (self.resizable and self.isSelected()
                 and event.button() == Qt.MouseButton.LeftButton):
             if self._rot_handle_at(event.pos()):
@@ -266,6 +291,7 @@ class BaseItem(CanvasItem):
 
     def mouseReleaseEvent(self, event):
         active = self._resizing or self._rotating
+        ctrl_click = self._ctrl_drag and not self._ctrl_done
         self._resizing = None
         self._rotating = False
         self._ctrl_drag = False
@@ -280,6 +306,8 @@ class BaseItem(CanvasItem):
             new = self.get_state()
             if new != self._state_at_press and sc and hasattr(sc, "push_state_undo"):
                 sc.push_state_undo(self, self._state_at_press, new)
+            elif ctrl_click and new == self._state_at_press and self._sel_at_press:
+                self.setSelected(False)      # Ctrl-click toggles selection off
         self._state_at_press = None
 
     def hoverMoveEvent(self, event):
@@ -363,7 +391,8 @@ class BaseItem(CanvasItem):
         x, y, w, h = self.get_geometry()
         return {"uid": self.uid, "x": x, "y": y, "w": w, "h": h,
                 "rotation": self.rotation(), "z": self.zValue(),
-                "name": self._name, "aspect_locked": self.aspect_locked}
+                "name": self._name, "aspect_locked": self.aspect_locked,
+                "locked": self.locked}
 
     def apply_base_dict(self, d):
         self.uid = d.get("uid", self.uid)
@@ -371,6 +400,7 @@ class BaseItem(CanvasItem):
         self.aspect_locked = d.get("aspect_locked", True)
         self.setZValue(d.get("z", 0))
         self.set_state((d["x"], d["y"], d["w"], d["h"], d.get("rotation", 0.0)))
+        self.set_locked(d.get("locked", False))
 
 
 class FigureItem(BaseItem):
@@ -586,10 +616,10 @@ class TextBoxItem(BaseItem):
     editRequested = Signal(object)
     PAD = 4.0
 
-    def __init__(self, text="文本框", family="Arial", size_pt=4.0,
+    def __init__(self, text="Text", family="Arial", size_pt=4.0,
                  bold=False, italic=False, color=None, w=170.0, h=90.0):
         super().__init__(resizable=True)
-        self._name = "文本框"
+        self._name = "Text Box"
         self.aspect_locked = False
         self.text = text
         self.family = family
@@ -709,7 +739,7 @@ class LineItem(CanvasItem):
     def __init__(self, p1=None, p2=None, color=None, width_pt=0.5,
                  dashed=False, arrow="none"):
         super().__init__()
-        self._name = "线条"
+        self._name = "Line"
         self.p1 = p1 if p1 is not None else QPointF(0, 0)
         self.p2 = p2 if p2 is not None else QPointF(120, 0)
         self.color = color or QtGui.QColor(40, 40, 40)
@@ -736,6 +766,13 @@ class LineItem(CanvasItem):
         r = QRectF(self.p1, self.p2).normalized()
         m = _PAD + self.width_pt
         return r.adjusted(-m, -m, m, m)
+
+    def content_scene_rect(self) -> QRectF:
+        m = self.width_pt / 2
+        if self.arrow != "none":
+            m += 4.0 + 3.0 * self.width_pt        # arrowhead length
+        r = QRectF(self.p1, self.p2).normalized().adjusted(-m, -m, m, m)
+        return self.mapToScene(r).boundingRect()
 
     def shape(self):
         path = QtGui.QPainterPath()
@@ -801,6 +838,7 @@ class LineItem(CanvasItem):
 
     def mousePressEvent(self, event):
         self._state_at_press = self.get_state()
+        self._sel_at_press = self.isSelected()
         if self.isSelected() and event.button() == Qt.MouseButton.LeftButton:
             h = self._handle_at(event.pos())
             if h:
@@ -876,6 +914,7 @@ class LineItem(CanvasItem):
 
     def mouseReleaseEvent(self, event):
         was = self._drag
+        ctrl_click = self._ctrl_drag and not self._ctrl_done
         self._drag = None
         self._ctrl_drag = False
         if not was:
@@ -883,10 +922,13 @@ class LineItem(CanvasItem):
         else:
             event.accept()
         sc = self.scene()
-        if self._state_at_press is not None and sc and hasattr(sc, "push_state_undo"):
+        if self._state_at_press is not None:
             new = self.get_state()
-            if new != self._state_at_press:
+            if (new != self._state_at_press and sc
+                    and hasattr(sc, "push_state_undo")):
                 sc.push_state_undo(self, self._state_at_press, new)
+            elif ctrl_click and new == self._state_at_press and self._sel_at_press:
+                self.setSelected(False)      # Ctrl-click toggles selection off
         self._state_at_press = None
 
     def hoverMoveEvent(self, event):
@@ -953,7 +995,8 @@ class LineItem(CanvasItem):
                 "z": self.zValue(), "name": self._name,
                 "color": self.color.name(), "width_pt": self.width_pt,
                 "dashed": self.dashed, "arrow": self.arrow,
-                "anchor1": self.anchor1, "anchor2": self.anchor2}
+                "anchor1": self.anchor1, "anchor2": self.anchor2,
+                "locked": self.locked}
 
     @classmethod
     def from_dict(cls, d):
@@ -964,9 +1007,10 @@ class LineItem(CanvasItem):
                    dashed=d.get("dashed", False),
                    arrow=d.get("arrow", "none"))
         item.uid = d.get("uid", item.uid)
-        item.set_name(d.get("name", "线条"))
+        item.set_name(d.get("name", "Line"))
         item.setZValue(d.get("z", 0))
         item.setPos(d.get("x", 0), d.get("y", 0))
         item.anchor1 = d.get("anchor1")
         item.anchor2 = d.get("anchor2")
+        item.set_locked(d.get("locked", False))
         return item

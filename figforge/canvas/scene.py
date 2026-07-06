@@ -1,6 +1,8 @@
 """The page scene: draws the page + grid, handles snapping and undo hooks."""
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 
@@ -50,6 +52,19 @@ class PageScene(QtWidgets.QGraphicsScene):
     def page_rect(self) -> QRectF:
         return QRectF(0, 0, self.page_w, self.page_h)
 
+    def content_rect(self) -> QRectF | None:
+        """Union of all item content bboxes, clipped to the page (or None)."""
+        rect: QRectF | None = None
+        for it in self.iter_items():
+            r = it.content_scene_rect()
+            rect = QRectF(r) if rect is None else rect.united(r)
+        if rect is None:
+            return None
+        rect = rect.intersected(self.page_rect())
+        if rect.isEmpty():
+            return None
+        return rect
+
     # ---- item registry / z-order ----------------------------------------
     def next_z(self) -> float:
         self._z_counter += 1.0
@@ -97,6 +112,17 @@ class PageScene(QtWidgets.QGraphicsScene):
         self.update()
 
     # ---- snapping --------------------------------------------------------
+    @contextmanager
+    def no_snap(self):
+        """Suspend smart/grid snapping while applying programmatic geometry
+        (exact coordinates, grid arrange, undo/redo) so it isn't hijacked."""
+        se, sg = self.snap_enabled, self.snap_to_grid
+        self.snap_enabled = self.snap_to_grid = False
+        try:
+            yield
+        finally:
+            self.snap_enabled, self.snap_to_grid = se, sg
+
     def _view_scale(self) -> float:
         if self.views():
             m = self.views()[0].transform().m11()

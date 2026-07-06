@@ -6,5 +6,5 @@ figures), labelling panels by hand, and exporting to print-ready PDF
 (vector preserved) and high-resolution PNG.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __app_name__ = "FigForge"

@@ -35,8 +35,12 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
   properties panel; smart-guide snapping + optional grid; align / distribute; z-order;
   copy / paste (Ctrl+C / Ctrl+V), **Ctrl-drag to duplicate**, and duplicate (Ctrl+D).
   Arrow keys nudge the selection (**Ctrl+arrows** for fine steps).
+- **Arrange in Grid**: select several panels → Object → **Arrange in Grid** (Ctrl+G) — rows /
+  columns / gaps in mm, optionally making every panel the same size, in one step.
 - **Same-size binding**: Ctrl-click several images to select them, right-click → **Bind Size** —
   resizing any one then keeps all bound images exactly the same size.
+- **Lock**: lock finished objects (Ctrl+L) so they can't be moved by accident; locked items show
+  a 🔒 in the Layers panel; **Unlock All** (Ctrl+Shift+L) releases them.
 - **Labels / text**: add text labels by hand with common fonts including Chinese
   (Arial, Times New Roman, Calibri, Microsoft YaHei, SimSun…), size, bold / italic, colour,
   alignment; double-click for multi-line editing. Chinese text automatically uses a Chinese
@@ -49,6 +53,8 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
   - **PDF** — vectors preserved, best for printing.
   - **PNG** — 150 / 300 / 600 / 1200 DPI, optional transparent background.
   - **TIFF** — high DPI, LZW compression.
+  - **Crop to content** — optionally trim the export to the content bounding box plus a chosen
+    margin, so the figure ships without the surrounding page whitespace.
 - **Project file `.ffp`** — a ZIP bundle carrying all assets, so projects survive moving machines
   or originals being relocated.
 - **Languages**: English and 简体中文, switchable from the **Language** menu (the choice is
@@ -67,6 +73,9 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
 | Duplicate / Delete / Select all | Ctrl+D / Del / Ctrl+A |
 | Nudge / Fine nudge | Arrows / Ctrl+Arrows |
 | Crop selected figure | C |
+| Arrange in grid | Ctrl+G |
+| Lock / Unlock all | Ctrl+L / Ctrl+Shift+L |
+| Deselect | Esc |
 | Fit page / Zoom in / Zoom out | Ctrl+0 / Ctrl++ / Ctrl+- |
 | Zoom (Ctrl+wheel), Pan (Space-drag or middle-drag) | |
 

@@ -3,10 +3,12 @@ from __future__ import annotations
 
 from PySide6 import QtGui
 
+from .i18n import tr
+
 
 class GeometryCommand(QtGui.QUndoCommand):
-    def __init__(self, item, old, new, text="移动 / 缩放"):
-        super().__init__(text)
+    def __init__(self, item, old, new, text=None):
+        super().__init__(text if text is not None else tr("Move / Resize"))
         self.item, self.old, self.new = item, old, new
 
     def redo(self):
@@ -17,8 +19,8 @@ class GeometryCommand(QtGui.QUndoCommand):
 
 
 class AddItemCommand(QtGui.QUndoCommand):
-    def __init__(self, scene, item, text="添加对象"):
-        super().__init__(text)
+    def __init__(self, scene, item, text=None):
+        super().__init__(text if text is not None else tr("Add object"))
         self.scene, self.item = scene, item
 
     def redo(self):
@@ -29,8 +31,8 @@ class AddItemCommand(QtGui.QUndoCommand):
 
 
 class DeleteItemsCommand(QtGui.QUndoCommand):
-    def __init__(self, scene, items, text="删除对象"):
-        super().__init__(text)
+    def __init__(self, scene, items, text=None):
+        super().__init__(text if text is not None else tr("Delete objects"))
         self.scene, self.items = scene, list(items)
 
     def redo(self):

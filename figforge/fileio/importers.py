@@ -15,6 +15,7 @@ from dataclasses import dataclass
 import fitz  # PyMuPDF
 from PySide6 import QtCore, QtGui
 
+from ..i18n import tr
 from ..qtutils import qimage_from_fitz, qimage_from_pil
 
 RASTER_EXTS = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".gif", ".webp"}
@@ -98,10 +99,9 @@ def _load_raster(path: str) -> LoadedSource:
 def _eps_to_pdf_bytes(path: str) -> bytes:
     gs = shutil.which("gswin64c") or shutil.which("gswin32c") or shutil.which("gs")
     if not gs:
-        raise RuntimeError(
-            "导入 EPS/PS 需要安装 Ghostscript（命令 gswin64c）。\n"
-            "请安装 Ghostscript，或先把文件转换为 PDF/SVG 后再导入。"
-        )
+        raise RuntimeError(tr(
+            "Importing EPS/PS requires Ghostscript (gswin64c). Install "
+            "Ghostscript, or convert the file to PDF/SVG first."))
     tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
     tmp.close()
     try:
@@ -168,4 +168,5 @@ def load_source(path: str, page_index: int = 0) -> LoadedSource:
         return _load_raster(path)
     if kind == "vector":
         return _load_vector(path, page_index)
-    raise ValueError(f"不支持的文件类型：{os.path.splitext(path)[1]}")
+    raise ValueError(tr("Unsupported file type: {0}").format(
+        os.path.splitext(path)[1]))

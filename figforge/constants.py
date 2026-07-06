@@ -64,5 +64,4 @@ PROJECT_FORMAT_VERSION = 1
 
 # ---- branding --------------------------------------------------------------
 APP_NAME = "FigForge"
-APP_TITLE = "FigForge · 论文图排版"
 ORG_NAME = "FigForge"

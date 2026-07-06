@@ -116,6 +116,12 @@ class CanvasView(QtWidgets.QGraphicsView):
             self.nudge.emit(sx * step, sy * step)
             event.accept()
             return
+        if event.key() == Qt.Key.Key_Escape:
+            sc = self.scene()
+            if sc is not None:
+                sc.clearSelection()
+            event.accept()
+            return
         if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
             self.setDragMode(QtWidgets.QGraphicsView.DragMode.ScrollHandDrag)
         super().keyPressEvent(event)

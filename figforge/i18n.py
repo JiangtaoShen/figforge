@@ -20,6 +20,8 @@ _ZH = {
     "Align": "对齐", "Order": "层叠顺序", "Rotate": "旋转",
     # file
     "New": "新建", "Open…": "打开…", "Save": "保存", "Save As…": "另存为…",
+    "Open Recent": "最近打开", "Clear Menu": "清空列表", "(empty)": "（空）",
+    "File not found: {0}": "文件不存在：{0}",
     "Import Images…": "导入图片…",
     "Export PDF (vector)…": "导出 PDF（矢量）…",
     "Export PNG (high-res)…": "导出 PNG（高分辨率）…",
@@ -30,6 +32,14 @@ _ZH = {
     # object
     "Add Text Label": "添加文字标签", "Add Text Box": "添加文本框",
     "Add Line": "添加线条", "Crop Image…": "裁剪图片…",
+    "Arrange in Grid…": "网格排版…", "Arrange in Grid": "网格排版",
+    "Select at least two images to arrange.": "请至少选中两张图片再进行网格排版。",
+    "Rows": "行数", "Columns": "列数",
+    "Horizontal gap": "水平间距", "Vertical gap": "垂直间距",
+    "Make all panels the same size as the first panel": "所有面板统一为第一个面板的尺寸",
+    "Panels are placed row by row in their current order (top-left first).":
+        "按当前位置从左上角开始，逐行排入网格。",
+    "Lock": "锁定", "Unlock All": "全部解锁",
     "Rotate Left 90°": "向左旋转 90°", "Rotate Right 90°": "向右旋转 90°",
     "Reset Rotation": "重置旋转",
     "Align Left": "左对齐", "Align Center": "水平居中", "Align Right": "右对齐",
@@ -80,6 +90,7 @@ _ZH = {
     # export dialog
     "Export Settings": "导出设置", "Resolution": "分辨率",
     "Transparent background": "透明背景",
+    "Crop to content": "裁剪至内容区域", "Content margin": "内容外留白",
     # dialogs / messages
     "Choose Page": "选择页面",
     "{0} has {1} pages. Which page to import?": "{0} 有 {1} 页，导入第几页？",
@@ -105,6 +116,14 @@ _ZH = {
     "Drag-duplicate": "拖动复制", "Modify rotation": "旋转", "Move": "移动",
     "Bind Size (same size)": "绑定尺寸（大小一致）", "Unbind Size": "解除尺寸绑定",
     "Bind Size": "绑定尺寸",
+    "Add object": "添加对象", "Delete objects": "删除对象",
+    "Move / Resize": "移动 / 缩放",
+    # import errors
+    "Importing EPS/PS requires Ghostscript (gswin64c). Install "
+    "Ghostscript, or convert the file to PDF/SVG first.":
+        "导入 EPS/PS 需要安装 Ghostscript（命令 gswin64c）。"
+        "请安装 Ghostscript，或先把文件转换为 PDF/SVG 后再导入。",
+    "Unsupported file type: {0}": "不支持的文件类型：{0}",
     "Language changed": "语言已切换",
     "The language will switch after restarting. Restart now?":
         "语言将在重启后生效。现在重启吗？",
@@ -121,8 +140,10 @@ _ZH = {
         "   drag the top dot to rotate.\n"
         "3. Object → Add Text Label / Text Box / Line for annotations; double-click to edit.\n"
         "4. Line endpoints snap to text-box / object nodes and stay connected.\n"
-        "5. Use align / distribute and smart snapping to tidy the panels.\n"
-        "6. File → Export: PDF keeps vectors; PNG / TIFF up to 1200 DPI.\n"
+        "5. Select several panels → Object → Arrange in Grid lays them out in one step;\n"
+        "   align / distribute / smart snapping fine-tune; lock finished items.\n"
+        "6. File → Export: PDF keeps vectors; PNG / TIFF up to 1200 DPI;\n"
+        "   tick \"Crop to content\" to trim the white page margins.\n"
         "7. Save as a .ffp project (bundles all assets; re-editable any time).",
     "ABOUT_BODY":
         "A lightweight figure-layout tool for academic papers.<br>"
@@ -135,8 +156,10 @@ _USER_GUIDE_ZH = (
     "2. 拖动移动；选中后拖角缩放（默认等比，按住 Shift 临时切换）；拖顶部圆点旋转。\n"
     "3. 对象 → 添加文字标签 / 文本框 / 线条 做标注；双击可编辑。\n"
     "4. 线条端点会自动黏附到文本框/对象的节点并保持连接。\n"
-    "5. 用对齐/分布与智能吸附把子图排整齐。\n"
-    "6. 文件 → 导出：PDF 保留矢量；PNG/TIFF 最高 1200 DPI。\n"
+    "5. 多选子图后用「对象 → 网格排版」一步排成网格；再用对齐/分布与智能吸附微调；\n"
+    "   排好的对象可锁定防止误动。\n"
+    "6. 文件 → 导出：PDF 保留矢量；PNG/TIFF 最高 1200 DPI；勾选「裁剪至内容区域」\n"
+    "   可去掉页面白边。\n"
     "7. 保存为 .ffp 项目（自带所有素材，可随时再编辑）。"
 )
 _ABOUT_ZH = (

@@ -27,19 +27,36 @@ _IMPORT_FILTER_KEY = (
 )
 
 
-class ExportRasterDialog(QtWidgets.QDialog):
-    def __init__(self, parent, allow_transparent=True):
+class ExportDialog(QtWidgets.QDialog):
+    """Export options: DPI / transparency (raster only) + crop-to-content."""
+
+    def __init__(self, parent, raster=True, allow_transparent=True):
         super().__init__(parent)
         self.setWindowTitle(tr("Export Settings"))
         form = QtWidgets.QFormLayout(self)
-        self.cmb_dpi = QtWidgets.QComboBox()
-        for d in constants.DPI_CHOICES:
-            self.cmb_dpi.addItem(f"{d} DPI", d)
-        self.cmb_dpi.setCurrentText(f"{constants.DEFAULT_DPI} DPI")
-        form.addRow(tr("Resolution"), self.cmb_dpi)
-        self.chk_transparent = QtWidgets.QCheckBox(tr("Transparent background"))
-        if allow_transparent:
-            form.addRow("", self.chk_transparent)
+        self.cmb_dpi = None
+        self.chk_transparent = None
+        if raster:
+            self.cmb_dpi = QtWidgets.QComboBox()
+            for d in constants.DPI_CHOICES:
+                self.cmb_dpi.addItem(f"{d} DPI", d)
+            self.cmb_dpi.setCurrentText(f"{constants.DEFAULT_DPI} DPI")
+            form.addRow(tr("Resolution"), self.cmb_dpi)
+            if allow_transparent:
+                self.chk_transparent = QtWidgets.QCheckBox(
+                    tr("Transparent background"))
+                form.addRow("", self.chk_transparent)
+        self.chk_crop = QtWidgets.QCheckBox(tr("Crop to content"))
+        form.addRow("", self.chk_crop)
+        self.spin_margin = QtWidgets.QDoubleSpinBox()
+        self.spin_margin.setRange(0.0, 50.0)
+        self.spin_margin.setDecimals(1)
+        self.spin_margin.setSingleStep(0.5)
+        self.spin_margin.setSuffix(" mm")
+        self.spin_margin.setValue(1.0)
+        self.spin_margin.setEnabled(False)
+        self.chk_crop.toggled.connect(self.spin_margin.setEnabled)
+        form.addRow(tr("Content margin"), self.spin_margin)
         buttons = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Ok
             | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
@@ -48,10 +65,15 @@ class ExportRasterDialog(QtWidgets.QDialog):
         form.addRow(buttons)
 
     def dpi(self) -> int:
-        return self.cmb_dpi.currentData()
+        return self.cmb_dpi.currentData() if self.cmb_dpi else constants.DEFAULT_DPI
 
     def transparent(self) -> bool:
-        return self.chk_transparent.isChecked()
+        return bool(self.chk_transparent and self.chk_transparent.isChecked())
+
+    def crop_margin_pt(self) -> float | None:
+        if not self.chk_crop.isChecked():
+            return None
+        return constants.mm_to_pt(self.spin_margin.value())
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -153,11 +175,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.a_add_textbox = self._act(tr("Add Text Box"), self.add_textbox)
         self.a_add_line = self._act(tr("Add Line"), self.add_line)
         self.a_crop = self._act(tr("Crop Image…"), self.crop_selected, "C")
+        self.a_grid_arrange = self._act(tr("Arrange in Grid…"), self.arrange_grid, "Ctrl+G")
         self.a_rot_l = self._act(tr("Rotate Left 90°"), lambda: self.rotate_selected(-90))
         self.a_rot_r = self._act(tr("Rotate Right 90°"), lambda: self.rotate_selected(90))
         self.a_rot_reset = self._act(tr("Reset Rotation"), self.reset_rotation)
         self.a_bind_size = self._act(tr("Bind Size (same size)"), self.bind_sizes)
         self.a_unbind_size = self._act(tr("Unbind Size"), self.unbind_sizes)
+        self.a_lock = self._act(tr("Lock"), self.lock_selected, "Ctrl+L")
+        self.a_unlock_all = self._act(tr("Unlock All"), self.unlock_all, "Ctrl+Shift+L")
 
         self.a_al_left = self._act(tr("Align Left"), lambda: self.align("left"))
         self.a_al_hc = self._act(tr("Align Center"), lambda: self.align("hcenter"))
@@ -183,7 +208,8 @@ class MainWindow(QtWidgets.QMainWindow):
         for act, key in (
             (self.a_import, "import"), (self.a_add_label, "text"),
             (self.a_add_textbox, "textbox"), (self.a_add_line, "line"),
-            (self.a_crop, "crop"),
+            (self.a_crop, "crop"), (self.a_grid_arrange, "grid_arrange"),
+            (self.a_lock, "lock"),
             (self.a_rot_l, "rotate_left"), (self.a_rot_r, "rotate_right"),
             (self.a_al_left, "align_left"), (self.a_al_hc, "align_hcenter"),
             (self.a_al_right, "align_right"), (self.a_al_top, "align_top"),
@@ -197,7 +223,11 @@ class MainWindow(QtWidgets.QMainWindow):
     def _build_menus(self):
         mb = self.menuBar()
         m = mb.addMenu(tr("File"))
-        m.addActions([self.a_new, self.a_open, self.a_save, self.a_save_as])
+        m.addActions([self.a_new, self.a_open])
+        self.m_recent = m.addMenu(tr("Open Recent"))
+        self.m_recent.setToolTipsVisible(True)
+        self.m_recent.aboutToShow.connect(self._rebuild_recent_menu)
+        m.addActions([self.a_save, self.a_save_as])
         m.addSeparator()
         m.addAction(self.a_import)
         m.addSeparator()
@@ -217,6 +247,11 @@ class MainWindow(QtWidgets.QMainWindow):
         m.addAction(self.a_add_textbox)
         m.addAction(self.a_add_line)
         m.addAction(self.a_crop)
+        m.addSeparator()
+        m.addAction(self.a_grid_arrange)
+        m.addSeparator()
+        m.addAction(self.a_lock)
+        m.addAction(self.a_unlock_all)
         m.addSeparator()
         m.addAction(self.a_bind_size)
         m.addAction(self.a_unbind_size)
@@ -259,6 +294,7 @@ class MainWindow(QtWidgets.QMainWindow):
         tb.addSeparator()
         tb.addActions([self.a_al_left, self.a_al_hc, self.a_al_right,
                        self.a_al_top, self.a_al_vm, self.a_al_bottom])
+        tb.addAction(self.a_grid_arrange)
         tb.addSeparator()
         tb.addActions([self.a_front, self.a_up, self.a_down, self.a_back])
         tb.addSeparator()
@@ -611,11 +647,9 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         def shift(ddx, ddy):
-            se = self.scene.snap_enabled
-            self.scene.snap_enabled = False
-            for it in items:
-                it.setPos(it.pos().x() + ddx, it.pos().y() + ddy)
-            self.scene.snap_enabled = se
+            with self.scene.no_snap():
+                for it in items:
+                    it.setPos(it.pos().x() + ddx, it.pos().y() + ddy)
 
         self._push(FuncCommand(tr("Move"),
                                lambda: shift(dx, dy),
@@ -675,11 +709,84 @@ class MainWindow(QtWidgets.QMainWindow):
         finally:
             self._syncing_size = False
 
+    # ---------------------------------------------------------- grid arrange
+    def arrange_grid(self):
+        figs = [it for it in self._selected() if isinstance(it, FigureItem)]
+        if len(figs) < 2:
+            QtWidgets.QMessageBox.information(
+                self, tr("Arrange in Grid"),
+                tr("Select at least two images to arrange."))
+            return
+        from .ui.arrange_dialog import ArrangeGridDialog
+        dlg = ArrangeGridDialog(self, len(figs))
+        if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return
+        _rows, cols, hgap, vgap, same = dlg.values()
+        ordered = self._grid_order(figs)
+        old = {it: it.get_state() for it in ordered}
+        x0 = min(st[0] for st in old.values())
+        y0 = min(st[1] for st in old.values())
+        if same:
+            w0, h0 = ordered[0].size()
+            sizes = {it: (w0, h0) for it in ordered}
+        else:
+            sizes = {it: it.size() for it in ordered}
+        cellw = max(w for w, _ in sizes.values())
+        cellh = max(h for _, h in sizes.values())
+        new = {}
+        for i, it in enumerate(ordered):
+            r, c = divmod(i, cols)
+            w, h = sizes[it]
+            new[it] = (x0 + c * (cellw + hgap), y0 + r * (cellh + vgap),
+                       w, h, old[it][4])
+
+        def apply(states):
+            with self.scene.no_snap():
+                for it in ordered:
+                    it.set_state(states[it])
+
+        self._push(FuncCommand(tr("Arrange in Grid"),
+                               lambda: apply(new), lambda: apply(old)))
+
+    def _grid_order(self, figs):
+        """Row-major order inferred from the panels' current positions."""
+        maxh = max(it.size()[1] for it in figs)
+        rows: list[tuple[float, list]] = []
+        for it in sorted(figs, key=lambda i: i.pos().y()):
+            if rows and it.pos().y() - rows[-1][0] <= maxh * 0.5:
+                rows[-1][1].append(it)
+            else:
+                rows.append((it.pos().y(), [it]))
+        ordered = []
+        for _, row in rows:
+            ordered.extend(sorted(row, key=lambda i: i.pos().x()))
+        return ordered
+
+    # ---------------------------------------------------------- lock / unlock
+    def lock_selected(self):
+        items = self._selected()
+        if not items:
+            return
+        self._push(FuncCommand(
+            tr("Lock"),
+            lambda: [it.set_locked(True) for it in items],
+            lambda: [it.set_locked(False) for it in items]))
+
+    def unlock_all(self):
+        items = [it for it in self.scene.iter_items() if it.locked]
+        if not items:
+            return
+        self._push(FuncCommand(
+            tr("Unlock All"),
+            lambda: [it.set_locked(False) for it in items],
+            lambda: [it.set_locked(True) for it in items]))
+
     def _show_context_menu(self, global_pos):
         menu = QtWidgets.QMenu(self)
         sel = self._selected()
         figs = [it for it in sel if isinstance(it, FigureItem)]
         if len(figs) >= 2:
+            menu.addAction(self.a_grid_arrange)
             menu.addAction(self.a_bind_size)
         if any(it.size_group for it in figs):
             menu.addAction(self.a_unbind_size)
@@ -689,8 +796,12 @@ class MainWindow(QtWidgets.QMainWindow):
             menu.addAction(self.a_copy)
             menu.addAction(self.a_duplicate)
             menu.addAction(self.a_delete)
+            menu.addAction(self.a_lock)
         if self._clipboard:
             menu.addAction(self.a_paste)
+        if any(it.locked for it in self.scene.iter_items()):
+            menu.addSeparator()
+            menu.addAction(self.a_unlock_all)
         if not menu.isEmpty():
             menu.exec(global_pos)
 
@@ -736,13 +847,19 @@ class MainWindow(QtWidgets.QMainWindow):
         if not items:
             return
         old = {it: it.get_geometry() for it in items}
-        mutate(items)
+        with self.scene.no_snap():
+            mutate(items)
         new = {it: it.get_geometry() for it in items}
         if new == old:
             return
+
+        def apply(geoms):
+            with self.scene.no_snap():
+                for it in items:
+                    it.set_geometry(*geoms[it])
+
         self._push(FuncCommand(text,
-                               lambda: [it.set_geometry(*new[it]) for it in items],
-                               lambda: [it.set_geometry(*old[it]) for it in items]))
+                               lambda: apply(new), lambda: apply(old)))
 
     def align(self, mode):
         def mut(items):
@@ -899,6 +1016,19 @@ class MainWindow(QtWidgets.QMainWindow):
             self, tr("Open Project"), "", tr("FigForge Project (*.ffp)"))
         if not path:
             return
+        self._load_project_path(path)
+
+    def open_recent(self, path):
+        if not self._confirm_discard():
+            return
+        if not os.path.isfile(path):
+            QtWidgets.QMessageBox.warning(
+                self, tr("Open Failed"), tr("File not found: {0}").format(path))
+            self._remove_recent(path)
+            return
+        self._load_project_path(path)
+
+    def _load_project_path(self, path):
         try:
             config, items, tempdir = project.load_project(path)
         except Exception as e:
@@ -936,6 +1066,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.layers.refresh()
         self.on_selection_changed()
         self.view.fit_page()
+        self._add_recent(path)
         self._update_title()
 
     def save_project(self) -> bool:
@@ -948,8 +1079,50 @@ class MainWindow(QtWidgets.QMainWindow):
             return False
         self.undo_stack.setClean()
         self._extra_dirty = False
+        self._add_recent(self.current_path)
         self._update_title()
         return True
+
+    # ------------------------------------------------------------ recent files
+    _MAX_RECENT = 8
+
+    @staticmethod
+    def _settings() -> QtCore.QSettings:
+        return QtCore.QSettings("FigForge", "FigForge")
+
+    def _recent_files(self) -> list[str]:
+        val = self._settings().value("recent_files") or []
+        if isinstance(val, str):
+            val = [val]
+        return [p for p in val if p]
+
+    def _add_recent(self, path):
+        path = os.path.abspath(path)
+        key = os.path.normcase(path)
+        lst = [p for p in self._recent_files() if os.path.normcase(p) != key]
+        lst.insert(0, path)
+        self._settings().setValue("recent_files", lst[:self._MAX_RECENT])
+
+    def _remove_recent(self, path):
+        key = os.path.normcase(path)
+        lst = [p for p in self._recent_files() if os.path.normcase(p) != key]
+        self._settings().setValue("recent_files", lst)
+
+    def _rebuild_recent_menu(self):
+        self.m_recent.clear()
+        files = self._recent_files()
+        if not files:
+            a = self.m_recent.addAction(tr("(empty)"))
+            a.setEnabled(False)
+            return
+        for i, p in enumerate(files, 1):
+            a = self.m_recent.addAction(f"&{i}  {os.path.basename(p)}")
+            a.setToolTip(p)
+            a.triggered.connect(lambda _=False, path=p: self.open_recent(path))
+        self.m_recent.addSeparator()
+        self.m_recent.addAction(
+            tr("Clear Menu"),
+            lambda: self._settings().setValue("recent_files", []))
 
     def save_project_as(self) -> bool:
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -984,6 +1157,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def export_pdf(self):
         if not self._has_items():
             return
+        dlg = ExportDialog(self, raster=False)
+        if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, tr("Export PDF"), "figure.pdf", tr("PDF (*.pdf)"))
         if not path:
@@ -991,7 +1167,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if not path.lower().endswith(".pdf"):
             path += ".pdf"
         try:
-            exporters.export_pdf(self.scene, path, white_bg=True)
+            exporters.export_pdf(self.scene, path, white_bg=True,
+                                 crop_margin_pt=dlg.crop_margin_pt())
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, tr("Export Failed"), str(e))
             return
@@ -1000,7 +1177,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def export_png(self):
         if not self._has_items():
             return
-        dlg = ExportRasterDialog(self, allow_transparent=True)
+        dlg = ExportDialog(self, raster=True, allow_transparent=True)
         if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -1011,7 +1188,8 @@ class MainWindow(QtWidgets.QMainWindow):
             path += ".png"
         try:
             exporters.export_png(self.scene, path, dpi=dlg.dpi(),
-                                 transparent=dlg.transparent())
+                                 transparent=dlg.transparent(),
+                                 crop_margin_pt=dlg.crop_margin_pt())
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, tr("Export Failed"), str(e))
             return
@@ -1021,7 +1199,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def export_tiff(self):
         if not self._has_items():
             return
-        dlg = ExportRasterDialog(self, allow_transparent=False)
+        dlg = ExportDialog(self, raster=True, allow_transparent=False)
         if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -1031,7 +1209,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if not path.lower().endswith((".tif", ".tiff")):
             path += ".tiff"
         try:
-            exporters.export_tiff(self.scene, path, dpi=dlg.dpi())
+            exporters.export_tiff(self.scene, path, dpi=dlg.dpi(),
+                                  crop_margin_pt=dlg.crop_margin_pt())
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, tr("Export Failed"), str(e))
             return

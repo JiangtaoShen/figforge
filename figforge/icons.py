@@ -192,6 +192,24 @@ def _export_png(p, color):
     _export(p, color, _PNG_TAG)
 
 
+def _grid_arrange(p, color):
+    for x in (13, 35):
+        for y in (13, 35):
+            p.drawRoundedRect(QRectF(x, y, 16, 16), 2.5, 2.5)
+
+
+def _lock(p, color):
+    p.drawRoundedRect(QRectF(17, 29, 30, 23), 3, 3)
+    p.drawArc(QRectF(23, 13, 18, 22), 0, 180 * 16)
+    _line(p, 23, 24, 23, 29)
+    _line(p, 41, 24, 41, 29)
+    p.save()
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(color)
+    p.drawEllipse(QPointF(32, 39), 3.4, 3.4)
+    p.restore()
+
+
 _DRAW = {
     "import": _import, "text": _text, "textbox": _textbox, "line": _line_glyph,
     "align_left": _align_left, "align_hcenter": _align_hcenter,
@@ -200,6 +218,7 @@ _DRAW = {
     "front": _front, "forward": _forward, "backward": _backward, "back": _back,
     "rotate_left": _rotate_left, "rotate_right": _rotate_right,
     "crop": _crop, "export_pdf": _export_pdf, "export_png": _export_png,
+    "grid_arrange": _grid_arrange, "lock": _lock,
 }
 
 

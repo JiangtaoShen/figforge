@@ -45,9 +45,15 @@ class LayersPanel(QtWidgets.QWidget):
                     "LineItem": "／ ", "LabelItem": "T "}
         for it in reversed(self.main.scene.iter_items()):   # top layer first
             label = prefixes.get(type(it).__name__, "• ") + it.name()
+            if getattr(it, "locked", False):
+                label = "🔒 " + label
             row = QtWidgets.QListWidgetItem(label)
             row.setData(QtCore.Qt.ItemDataRole.UserRole, it)
-            row.setSelected(it.isSelected())
+            if getattr(it, "locked", False):    # locked: not selectable in list
+                row.setFlags(row.flags() & ~QtCore.Qt.ItemFlag.ItemIsSelectable)
+                row.setForeground(QtGui.QBrush(QtGui.QColor(140, 140, 140)))
+            else:
+                row.setSelected(it.isSelected())
             self.list.addItem(row)
         self._syncing = False
 
