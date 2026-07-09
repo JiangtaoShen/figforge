@@ -18,7 +18,9 @@ SCRIPTS = sorted(f for f in os.listdir(HERE)
 ENV = dict(os.environ)
 ENV.setdefault("FIGFORGE_AUTOSAVE_DIR",
                tempfile.mkdtemp(prefix="ff_test_autosave_"))
-ENV.setdefault("PYTHONFAULTHANDLER", "1")   # C-level traceback on segfault
+# C-level traceback if a Qt call segfaults (kept on: invaluable for the
+# macOS use-after-free crashes that have no Python traceback)
+ENV.setdefault("PYTHONFAULTHANDLER", "1")
 
 
 def main() -> int:
