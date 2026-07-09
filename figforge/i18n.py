@@ -94,7 +94,7 @@ _ZH = {
     # dialogs / messages
     "Choose Page": "选择页面",
     "{0} has {1} pages. Which page to import?": "{0} 有 {1} 页，导入第几页？",
-    "Import Failed": "导入失败", "Edit Text": "编辑文字", "Content:": "内容：",
+    "Import Failed": "导入失败",
     "Crop": "裁剪", "Please select a single image to crop.": "请选择单个图片进行裁剪。",
     "Info": "提示", "The page is empty — import an image first.": "页面是空的，先导入图片吧。",
     "Export PDF": "导出 PDF", "Export PNG": "导出 PNG", "Export TIFF": "导出 TIFF",

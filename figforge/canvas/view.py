@@ -103,11 +103,28 @@ class CanvasView(QtWidgets.QGraphicsView):
         else:
             super().wheelEvent(event)
 
-    # ---- pan (space-drag or middle button) ------------------------------
+    # ---- keys (nudge / pan / deselect; bypass while editing text) --------
     _ARROWS = {Qt.Key.Key_Left: (-1, 0), Qt.Key.Key_Right: (1, 0),
                Qt.Key.Key_Up: (0, -1), Qt.Key.Key_Down: (0, 1)}
 
+    def _text_editing(self) -> bool:
+        sc = self.scene()
+        fi = sc.focusItem() if sc is not None else None
+        return isinstance(fi, QtWidgets.QGraphicsTextItem)
+
+    def event(self, e):
+        # While the in-place text editor is focused, claim every key so the
+        # window's QAction shortcuts (T, C, Delete, Ctrl+D…) don't steal it.
+        if (e.type() == QtCore.QEvent.Type.ShortcutOverride
+                and self._text_editing()):
+            e.accept()
+            return True
+        return super().event(e)
+
     def keyPressEvent(self, event):
+        if self._text_editing():
+            super().keyPressEvent(event)      # forward to the editor
+            return
         if event.key() in self._ARROWS:
             fine = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
             step = constants.mm_to_pt(
@@ -130,6 +147,9 @@ class CanvasView(QtWidgets.QGraphicsView):
         self.contextMenu.emit(event.globalPos())
 
     def keyReleaseEvent(self, event):
+        if self._text_editing():
+            super().keyReleaseEvent(event)
+            return
         if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
             self.setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
         super().keyReleaseEvent(event)

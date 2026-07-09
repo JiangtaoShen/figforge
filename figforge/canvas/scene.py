@@ -103,6 +103,16 @@ class PageScene(QtWidgets.QGraphicsScene):
                 lambda: item.set_state(new),
                 lambda: item.set_state(old)))
 
+    def push_text_undo(self, item, old, new):
+        """Undo for in-place text edits."""
+        if self.undo_stack is not None:
+            self.undo_stack.push(FuncCommand(
+                tr("Edit text"),
+                lambda: item.set_text(new),
+                lambda: item.set_text(old)))
+        else:
+            item.set_text(new)
+
     # ---- grid / snap settings -------------------------------------------
     def set_grid(self, mm: float | None = None, visible: bool | None = None):
         if mm is not None:
@@ -162,7 +172,7 @@ class PageScene(QtWidgets.QGraphicsScene):
                 dy = best[0]
                 guides.append(("h", best[1]))
 
-        if self.snap_to_grid:
+        if self.snap_to_grid and not getattr(item, "grid_snap_exempt", False):
             step = constants.mm_to_pt(self.grid_mm)
             if dx == 0.0:
                 dx = round(left / step) * step - left

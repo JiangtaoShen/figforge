@@ -348,8 +348,6 @@ class MainWindow(QtWidgets.QMainWindow):
         return "Arial" if "Arial" in fams else fams[0]
 
     def _register_new_item(self, item):
-        if isinstance(item, (LabelItem, TextBoxItem)):
-            item.editRequested.connect(self.edit_text)
         if isinstance(item, BaseItem):
             item.geometryChanged.connect(self._update_line_anchors)
         if isinstance(item, FigureItem):
@@ -440,6 +438,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._register_new_item(item)
         self._push(AddItemCommand(self.scene, item))
         self._select_only([item])
+        self.view.setFocus()
+        item.start_inline_edit(select_all=True)   # type straight away
 
     def add_textbox(self):
         self._tb_count += 1
@@ -452,6 +452,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._register_new_item(item)
         self._push(AddItemCommand(self.scene, item))
         self._select_only([item])
+        self.view.setFocus()
+        item.start_inline_edit(select_all=True)   # type straight away
 
     def add_line(self):
         self._line_count += 1
@@ -463,16 +465,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._register_new_item(item)
         self._push(AddItemCommand(self.scene, item))
         self._select_only([item])
-
-    def edit_text(self, item):
-        text, ok = QtWidgets.QInputDialog.getMultiLineText(
-            self, tr("Edit Text"), tr("Content:"), item.text)
-        if not ok:
-            return
-        old = item.text
-        self._push(FuncCommand(tr("Edit text"),
-                               lambda: item.set_text(text),
-                               lambda: item.set_text(old)))
 
     # --------------------------------------------------------- rotate / crop
     def _rotate_to(self, target_fn, text):

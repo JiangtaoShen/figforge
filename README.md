@@ -43,12 +43,14 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
   a 🔒 in the Layers panel; **Unlock All** (Ctrl+Shift+L) releases them.
 - **Labels / text**: add text labels by hand with common fonts including Chinese
   (Arial, Times New Roman, Calibri, Microsoft YaHei, SimSun…), size, bold / italic, colour,
-  alignment; double-click for multi-line editing. Chinese text automatically uses a Chinese
+  alignment; **double-click to edit right on the canvas** (a caret appears in place — no popup
+  dialog; Esc or clicking elsewhere finishes). Chinese text automatically uses a Chinese
   font on export. **No auto-numbering — fully under your control.**
 - **Annotations**: **text boxes** (wrapping text frame, optional border and fill with adjustable
   **background opacity**, rotatable) and **lines / arrows** (solid or dashed, end or both-end
   arrowheads). Line endpoints **snap to text-box / object nodes and stay attached** — move the box
   and the connected end follows while the other end stays put. Both export as vectors.
+  Text boxes and lines ignore grid snapping, so annotations can be placed freely.
 - **Export**:
   - **PDF** — vectors preserved, best for printing.
   - **PNG** — 150 / 300 / 600 / 1200 DPI, optional transparent background.

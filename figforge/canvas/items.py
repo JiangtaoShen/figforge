@@ -73,6 +73,104 @@ def _place(page, src, x, y, w, h, angle, clip=None):
                        src, 0, rotate=int(EXPORT_ROT_SIGN * ang) % 360, clip=clip)
 
 
+class _TextEditorItem(QtWidgets.QGraphicsTextItem):
+    """Transient in-place text editor (child of the edited item).
+
+    Shows a real caret on the canvas; commits on focus-out, Escape or
+    Ctrl+Enter. Created/destroyed by InlineTextEdit.start/finish_inline_edit.
+    """
+
+    def __init__(self, host):
+        super().__init__(host)
+        self._host = host
+
+    def focusOutEvent(self, event):
+        super().focusOutEvent(event)
+        self._host.finish_inline_edit()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape or (
+                event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+                and event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+            event.accept()
+            self._host.finish_inline_edit()
+            return
+        super().keyPressEvent(event)
+
+
+class InlineTextEdit:
+    """Mixin for text items: in-place editing with a caret on the canvas."""
+
+    EDIT_WRAP = True          # wrap to the frame width (text boxes)
+
+    def _edit_pad(self) -> float:
+        return getattr(self, "PAD", 0.0)
+
+    def _sync_editor_width(self):
+        ed = getattr(self, "_editor", None)
+        if ed is not None and self.EDIT_WRAP:
+            ed.setTextWidth(max(10.0, self._w - 2 * self._edit_pad()))
+
+    def start_inline_edit(self, select_all=False):
+        if getattr(self, "_editor", None) is not None:
+            return
+        ed = _TextEditorItem(self)
+        ed.setFont(self.font())
+        ed.setDefaultTextColor(QtGui.QColor(self.color))
+        doc = ed.document()
+        doc.setDocumentMargin(0.0)
+        opt = doc.defaultTextOption()
+        opt.setAlignment({"left": Qt.AlignmentFlag.AlignLeft,
+                          "center": Qt.AlignmentFlag.AlignHCenter,
+                          "right": Qt.AlignmentFlag.AlignRight}[self.align])
+        opt.setWrapMode(QtGui.QTextOption.WrapMode.WordWrap if self.EDIT_WRAP
+                        else QtGui.QTextOption.WrapMode.NoWrap)
+        doc.setDefaultTextOption(opt)
+        ed.setPlainText(self.text)
+        pad = self._edit_pad()
+        ed.setPos(pad, pad)
+        if self.EDIT_WRAP:
+            ed.setTextWidth(max(10.0, self._w - 2 * pad))
+            self.geometryChanged.connect(self._sync_editor_width)
+        ed.setTextInteractionFlags(Qt.TextInteractionFlag.TextEditorInteraction)
+        cur = ed.textCursor()
+        if select_all:
+            cur.select(QtGui.QTextCursor.SelectionType.Document)
+        else:
+            cur.movePosition(QtGui.QTextCursor.MoveOperation.End)
+        ed.setTextCursor(cur)
+        self._editor = ed
+        self.update()             # host stops painting its own text
+        ed.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def finish_inline_edit(self):
+        ed = getattr(self, "_editor", None)
+        if ed is None:
+            return
+        self._editor = None
+        if self.EDIT_WRAP:
+            try:
+                self.geometryChanged.disconnect(self._sync_editor_width)
+            except (RuntimeError, TypeError):
+                pass
+        new = ed.toPlainText()
+        sc = self.scene()
+        ed.setParentItem(None)
+        if ed.scene() is not None:
+            ed.scene().removeItem(ed)
+        old = self.text
+        if new != old:
+            if sc is not None and getattr(sc, "push_text_undo", None) is not None:
+                sc.push_text_undo(self, old, new)
+            else:
+                self.set_text(new)
+        self.update()
+
+    def mouseDoubleClickEvent(self, event):
+        self.start_inline_edit()
+        event.accept()
+
+
 class CanvasItem(QtWidgets.QGraphicsObject):
     """Base for every selectable page object (rectangular items and lines)."""
 
@@ -511,15 +609,16 @@ class FigureItem(BaseItem):
         return item
 
 
-class LabelItem(BaseItem):
+class LabelItem(InlineTextEdit, BaseItem):
     """An editable text label (panel letter, caption, annotation)."""
 
-    editRequested = Signal(object)
+    EDIT_WRAP = False         # labels auto-size, no wrapping frame
 
     def __init__(self, text="a", family="Arial", size_pt=12.0, bold=True,
                  italic=False, color=None):
         super().__init__(resizable=False)
         self._name = "Label"
+        self._editor = None
         self.text = text
         self.family = family
         self.size_pt = size_pt
@@ -560,16 +659,14 @@ class LabelItem(BaseItem):
         self._recompute()
 
     def paint_content(self, painter):
+        if self._editor is not None:      # the in-place editor draws the text
+            return
         painter.setFont(self.font())
         painter.setPen(QtGui.QPen(self.color))
         align = Qt.AlignmentFlag.AlignLeft if self.align == "left" else Qt.AlignmentFlag.AlignHCenter
         painter.drawText(QRectF(0, 0, self._w, self._h),
                          int(align | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextDontClip),
                          self.text)
-
-    def mouseDoubleClickEvent(self, event):
-        self.editRequested.emit(self)
-        event.accept()
 
     # ---- export ----------------------------------------------------------
     def render_to_pdf(self, page, fontreg, keep_open):
@@ -613,16 +710,17 @@ class LabelItem(BaseItem):
         return item
 
 
-class TextBoxItem(BaseItem):
+class TextBoxItem(InlineTextEdit, BaseItem):
     """A resizable text frame: wrapped text with optional border / fill."""
 
-    editRequested = Signal(object)
     PAD = 4.0
+    grid_snap_exempt = True      # annotations move freely, no grid snapping
 
     def __init__(self, text="Text", family="Arial", size_pt=4.0,
                  bold=False, italic=False, color=None, w=170.0, h=90.0):
         super().__init__(resizable=True)
         self._name = "Text Box"
+        self._editor = None
         self.aspect_locked = False
         self.text = text
         self.family = family
@@ -664,6 +762,8 @@ class TextBoxItem(BaseItem):
             painter.setBrush(Qt.BrushStyle.NoBrush)
             d = self.border_width / 2
             painter.drawRect(rect.adjusted(d, d, -d, -d))
+        if self._editor is not None:      # the in-place editor draws the text
+            return
         painter.setFont(self.font())
         painter.setPen(QtGui.QPen(self.color))
         inner = rect.adjusted(self.PAD, self.PAD, -self.PAD, -self.PAD)
@@ -683,10 +783,6 @@ class TextBoxItem(BaseItem):
                 setattr(self, k, kw[k])
         self.update()
         self.geometryChanged.emit()
-
-    def mouseDoubleClickEvent(self, event):
-        self.editRequested.emit(self)
-        event.accept()
 
     def render_to_pdf(self, page, fontreg, keep_open):
         x, y, w, h = self.get_geometry()
@@ -765,6 +861,8 @@ class TextBoxItem(BaseItem):
 
 class LineItem(CanvasItem):
     """A straight line / arrow annotation with draggable endpoints."""
+
+    grid_snap_exempt = True      # annotations move freely, no grid snapping
 
     def __init__(self, p1=None, p2=None, color=None, width_pt=0.5,
                  dashed=False, arrow="none"):
