@@ -4,6 +4,8 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
+**[⬇ Download for Windows (v0.2.0)](https://github.com/JiangtaoShen/figforge/releases/latest)** — unzip and run `FigForge.exe`, no Python needed.
+
 A lightweight, **vector-preserving** layout tool for academic figures — a trimmed-down
 "graphic design" app focused on one job: arranging several sub-figures into a Nature-style
 multi-panel figure on an A4 / Letter page, labelling panels by hand, and exporting

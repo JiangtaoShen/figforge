@@ -4,6 +4,8 @@
 
 [English](README.md) | **简体中文**
 
+**[⬇ Windows 版下载（v0.2.0）](https://github.com/JiangtaoShen/figforge/releases/latest)** —— 解压后双击 `FigForge.exe`，无需安装 Python。
+
 一个面向学术论文的**轻量图排版工具**（专业平面设计软件的精简版），用于把多张子图拼成
 Nature 风格的多面板大图、手动标注编号（a / b / c…），并导出**印刷级 PDF（矢量保真）**
 与**高分辨率 PNG / TIFF**。
