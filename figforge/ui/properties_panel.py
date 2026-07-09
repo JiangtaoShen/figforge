@@ -139,6 +139,22 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         bf.addRow("", self.chk_fill)
         bf.addRow("", self.btn_fill_color)
         bf.addRow(tr("Background transparency"), self.spin_alpha)
+        self.spin_pad_l = self._spin(0, 50, 1, " mm", 0.5)
+        self.spin_pad_r = self._spin(0, 50, 1, " mm", 0.5)
+        self.spin_pad_t = self._spin(0, 50, 1, " mm", 0.5)
+        self.spin_pad_b = self._spin(0, 50, 1, " mm", 0.5)
+
+        def _pair(a, b):
+            row = QtWidgets.QHBoxLayout()
+            row.setContentsMargins(0, 0, 0, 0)
+            row.addWidget(a)
+            row.addWidget(b)
+            wdg = QtWidgets.QWidget()
+            wdg.setLayout(row)
+            return wdg
+
+        bf.addRow(tr("Padding L / R"), _pair(self.spin_pad_l, self.spin_pad_r))
+        bf.addRow(tr("Padding T / B"), _pair(self.spin_pad_t, self.spin_pad_b))
         lay.addWidget(self.box_frame)
         self.cmb_shape.currentIndexChanged.connect(self._shape_changed)
         self.spin_radius.editingFinished.connect(self._apply_frame)
@@ -148,6 +164,9 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         self.chk_fill.toggled.connect(self._apply_frame)
         self.btn_fill_color.clicked.connect(lambda: self._pick_frame_color("fill"))
         self.spin_alpha.editingFinished.connect(self._apply_frame)
+        for s in (self.spin_pad_l, self.spin_pad_r,
+                  self.spin_pad_t, self.spin_pad_b):
+            s.editingFinished.connect(self._apply_frame)
 
         # --- line -------------------------------------------------------
         self.box_line = QtWidgets.QGroupBox(tr("Line"))
@@ -244,8 +263,10 @@ class PropertiesPanel(QtWidgets.QScrollArea):
             self._loading = True
             self.ed_text.setText(it.text)
             self._loading = False
-        if isinstance(it, TextBoxItem) and not self.spin_radius.hasFocus():
-            self._load_frame()      # live-sync while dragging the diamond
+        if isinstance(it, TextBoxItem):
+            fw = QtWidgets.QApplication.focusWidget()
+            if fw is None or not self.box_frame.isAncestorOf(fw):
+                self._load_frame()  # live-sync while dragging the diamond
 
     # ------------------------------------------------------------- loaders
     def _load_geometry(self):
@@ -292,6 +313,10 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         self._fill_color = QtGui.QColor(it.fill_color)
         self._tint(self.btn_fill_color, self._fill_color)
         self.spin_alpha.setValue(round((1.0 - it.fill_opacity) * 100))
+        self.spin_pad_l.setValue(it.pad_left * _MM)
+        self.spin_pad_r.setValue(it.pad_right * _MM)
+        self.spin_pad_t.setValue(it.pad_top * _MM)
+        self.spin_pad_b.setValue(it.pad_bottom * _MM)
         self._loading = False
 
     def _load_line(self):
@@ -435,7 +460,11 @@ class PropertiesPanel(QtWidgets.QScrollArea):
                    fill=self.chk_fill.isChecked(),
                    fill_color=QtGui.QColor(self._fill_color),
                    fill_opacity=1.0 - self.spin_alpha.value() / 100.0,
-                   corner_radius=radius)
+                   corner_radius=radius,
+                   pad_left=self.spin_pad_l.value() * _PT,
+                   pad_right=self.spin_pad_r.value() * _PT,
+                   pad_top=self.spin_pad_t.value() * _PT,
+                   pad_bottom=self.spin_pad_b.value() * _PT)
 
         def do():
             it.apply_style(**new)
@@ -445,7 +474,10 @@ class PropertiesPanel(QtWidgets.QScrollArea):
                            border_color=QtGui.QColor(before["border_color"]),
                            fill=before["fill"], fill_color=QtGui.QColor(before["fill_color"]),
                            fill_opacity=before["fill_opacity"],
-                           corner_radius=before["corner_radius"])
+                           corner_radius=before["corner_radius"],
+                           pad_left=before["pad_left"], pad_top=before["pad_top"],
+                           pad_right=before["pad_right"],
+                           pad_bottom=before["pad_bottom"])
 
         self._push(FuncCommand(tr("Modify text box"), do, undo))
 

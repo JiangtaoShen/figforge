@@ -48,9 +48,10 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
   dialog; Esc or clicking elsewhere finishes). Chinese text automatically uses a Chinese
   font on export. **No auto-numbering — fully under your control.**
 - **Annotations**: **text boxes** (wrapping text frame — rectangle or **rounded rectangle**, with
-  the corner radius adjusted by dragging the diamond handle right on the box; optional border and
-  fill with adjustable **background opacity**, rotatable) and **lines / arrows** (solid or dashed,
-  end or both-end arrowheads). Line endpoints **snap to text-box / object nodes and stay attached** — move the box
+  the corner radius adjusted by dragging the diamond handle right on the box; **per-side text
+  padding** (left/right/top/bottom, in mm); optional border and fill with adjustable
+  **background opacity**, rotatable) and **lines / arrows** (solid or dashed, end or both-end
+  arrowheads). Line endpoints **snap to text-box / object nodes and stay attached** — move the box
   and the connected end follows while the other end stays put. Both export as vectors.
   Text boxes and lines ignore grid snapping, so annotations can be placed freely.
 - **Export**:

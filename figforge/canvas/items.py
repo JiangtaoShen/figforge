@@ -103,13 +103,16 @@ class InlineTextEdit:
 
     EDIT_WRAP = True          # wrap to the frame width (text boxes)
 
-    def _edit_pad(self) -> float:
-        return getattr(self, "PAD", 0.0)
+    def _edit_pads(self) -> tuple[float, float, float]:
+        """(left, top, right) insets for the in-place editor."""
+        p = float(getattr(self, "PAD", 0.0))
+        return (p, p, p)
 
     def _sync_editor_width(self):
         ed = getattr(self, "_editor", None)
         if ed is not None and self.EDIT_WRAP:
-            ed.setTextWidth(max(10.0, self._w - 2 * self._edit_pad()))
+            pl, _, pr = self._edit_pads()
+            ed.setTextWidth(max(10.0, self._w - pl - pr))
 
     def start_inline_edit(self, select_all=False):
         if getattr(self, "_editor", None) is not None:
@@ -127,10 +130,10 @@ class InlineTextEdit:
                         else QtGui.QTextOption.WrapMode.NoWrap)
         doc.setDefaultTextOption(opt)
         ed.setPlainText(self.text)
-        pad = self._edit_pad()
-        ed.setPos(pad, pad)
+        pl, pt_, pr = self._edit_pads()
+        ed.setPos(pl, pt_)
         if self.EDIT_WRAP:
-            ed.setTextWidth(max(10.0, self._w - 2 * pad))
+            ed.setTextWidth(max(10.0, self._w - pl - pr))
             self.geometryChanged.connect(self._sync_editor_width)
         ed.setTextInteractionFlags(Qt.TextInteractionFlag.TextEditorInteraction)
         cur = ed.textCursor()
@@ -736,6 +739,10 @@ class TextBoxItem(InlineTextEdit, BaseItem):
         self.fill_color = QtGui.QColor("white")
         self.fill_opacity = 1.0
         self.corner_radius = 0.0          # 0 = rectangle, >0 = rounded (pt)
+        self.pad_left = self.PAD          # text-to-frame insets (pt)
+        self.pad_top = self.PAD
+        self.pad_right = self.PAD
+        self.pad_bottom = self.PAD
         self._adj_radius = False
         self._radius_at_press = 0.0
         self._w, self._h = w, h
@@ -790,7 +797,8 @@ class TextBoxItem(InlineTextEdit, BaseItem):
             return
         painter.setFont(self.font())
         painter.setPen(QtGui.QPen(self.color))
-        inner = rect.adjusted(self.PAD, self.PAD, -self.PAD, -self.PAD)
+        inner = rect.adjusted(self.pad_left, self.pad_top,
+                              -self.pad_right, -self.pad_bottom)
         painter.drawText(inner, int(self._qalign() | Qt.AlignmentFlag.AlignTop
                                     | Qt.TextFlag.TextWordWrap), self.text)
 
@@ -802,11 +810,15 @@ class TextBoxItem(InlineTextEdit, BaseItem):
     def apply_style(self, **kw):
         for k in ("text", "family", "size_pt", "bold", "italic", "color",
                   "align", "border", "border_color", "border_width",
-                  "fill", "fill_color", "fill_opacity", "corner_radius"):
+                  "fill", "fill_color", "fill_opacity", "corner_radius",
+                  "pad_left", "pad_top", "pad_right", "pad_bottom"):
             if k in kw and kw[k] is not None:
                 setattr(self, k, kw[k])
         self.update()
         self.geometryChanged.emit()
+
+    def _edit_pads(self) -> tuple[float, float, float]:
+        return (self.pad_left, self.pad_top, self.pad_right)
 
     # ---- corner-radius handle (PowerPoint-style diamond) ------------------
     def _radius_handle_pos(self) -> QPointF:
@@ -913,8 +925,8 @@ class TextBoxItem(InlineTextEdit, BaseItem):
                              width=self.border_width, radius=rad)
             deficit = 0.0
             if text:
-                inner = fitz.Rect(self.PAD, self.PAD,
-                                  w - self.PAD, page_h - self.PAD)
+                inner = fitz.Rect(self.pad_left, self.pad_top,
+                                  w - self.pad_right, page_h - self.pad_bottom)
                 if inner.width > 1 and inner.height > 1:
                     rc = ip.insert_textbox(inner, text, fontname=rf.fontname,
                                            fontfile=rf.fontfile,
@@ -922,7 +934,7 @@ class TextBoxItem(InlineTextEdit, BaseItem):
                                            color=_rgb(self.color), align=align)
                     deficit = -rc if rc < 0 else 0.0
                 else:                    # frame smaller than the padding
-                    deficit = 2 * self.PAD + 1.5 * self.size_pt
+                    deficit = self.pad_top + self.pad_bottom + 1.5 * self.size_pt
             return doc, deficit
 
         # insert_textbox writes NOTHING when the whole text does not fit,
@@ -932,7 +944,7 @@ class TextBoxItem(InlineTextEdit, BaseItem):
         page_h, tries = h, 0
         while deficit > 0 and tries < 4:
             inter.close()
-            page_h += deficit + 2 * self.size_pt + 2 * self.PAD
+            page_h += deficit + 2 * self.size_pt + self.pad_top + self.pad_bottom
             inter, deficit = build(page_h)
             tries += 1
         keep_open.append(inter)
@@ -948,7 +960,9 @@ class TextBoxItem(InlineTextEdit, BaseItem):
                   "border_width": self.border_width, "fill": self.fill,
                   "fill_color": self.fill_color.name(),
                   "fill_opacity": self.fill_opacity,
-                  "corner_radius": self.corner_radius})
+                  "corner_radius": self.corner_radius,
+                  "pad_left": self.pad_left, "pad_top": self.pad_top,
+                  "pad_right": self.pad_right, "pad_bottom": self.pad_bottom})
         return d
 
     @classmethod
@@ -965,6 +979,10 @@ class TextBoxItem(InlineTextEdit, BaseItem):
         item.fill_color = QtGui.QColor(d.get("fill_color", "#ffffff"))
         item.fill_opacity = d.get("fill_opacity", 1.0)
         item.corner_radius = d.get("corner_radius", 0.0)
+        item.pad_left = d.get("pad_left", cls.PAD)
+        item.pad_top = d.get("pad_top", cls.PAD)
+        item.pad_right = d.get("pad_right", cls.PAD)
+        item.pad_bottom = d.get("pad_bottom", cls.PAD)
         item.apply_base_dict(d)
         return item
 

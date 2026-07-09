@@ -76,6 +76,7 @@ _ZH = {
     "Line style": "线型", "Arrow": "箭头",
     "Shape": "形状", "Rectangle": "矩形", "Rounded rectangle": "圆角矩形",
     "Corner radius": "圆角半径", "Adjust corner radius": "调整圆角",
+    "Padding L / R": "左右边距", "Padding T / B": "上下边距",
     "Drag the diamond to adjust the corner.": "拖动菱形手柄可调整圆角大小。",
     "Left": "左对齐", "Center": "居中", "Right": "右对齐",
     "Solid": "实线", "Dashed": "虚线",

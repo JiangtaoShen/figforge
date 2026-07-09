@@ -555,6 +555,8 @@ class MainWindow(QtWidgets.QMainWindow):
             dup.fill_color = QtGui.QColor(it.fill_color)
             dup.fill_opacity = it.fill_opacity
             dup.corner_radius = it.corner_radius
+            dup.pad_left, dup.pad_top = it.pad_left, it.pad_top
+            dup.pad_right, dup.pad_bottom = it.pad_right, it.pad_bottom
             dup.set_name(f"{tr('Text Box')} {self._tb_count}")
             return dup
         if isinstance(it, LineItem):
