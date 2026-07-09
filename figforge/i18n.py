@@ -62,6 +62,9 @@ _ZH = {
     "Send backward": "下移一层", "Send to back": "置于底层",
     # status
     "Zoom {0}%": "缩放 {0}%",
+    "Grid {0} mm": "网格 {0} mm",
+    "Dynamic grid: finer as you zoom in; snapping follows it.":
+        "动态网格：放大越细，吸附随当前网格步长。",
     # properties groups
     "Position & Size": "位置与大小", "Image": "图片选项", "Text": "文字",
     "Text Box Border / Fill": "文本框边框 / 填充", "Line": "线条",

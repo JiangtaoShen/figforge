@@ -32,7 +32,8 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
 - **Layout**: move by dragging; resize from the handles (keeps aspect by default, hold Shift to
   toggle); rotate (drag the rotation handle — Shift for 15° steps, snaps to 0/90/180/270 — or type
   an exact angle); crop (visual box with rule-of-thirds); enter exact millimetre values in the
-  properties panel; smart-guide snapping + optional grid; align / distribute; z-order;
+  properties panel; smart-guide snapping + a **dynamic Visio-style grid** (finer gridlines appear
+  as you zoom in, 1-2-5 mm steps; grid snapping follows the visible step); align / distribute; z-order;
   copy / paste (Ctrl+C / Ctrl+V), **Ctrl-drag to duplicate**, and duplicate (Ctrl+D).
   Arrow keys nudge the selection (**Ctrl+arrows** for fine steps).
 - **Arrange in Grid**: select several panels → Object → **Arrange in Grid** (Ctrl+G) — rows /

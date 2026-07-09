@@ -107,8 +107,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scene.sceneEdited.connect(self._on_scene_edited)
         self.scene.ctrlDuplicate.connect(self._ctrl_duplicate)
         self.undo_stack.cleanChanged.connect(lambda *_: self._update_title())
-        self.view.zoomChanged.connect(
-            lambda p: self.lbl_zoom.setText(tr("Zoom {0}%").format(round(p))))
+        self.view.zoomChanged.connect(self._on_zoom)
         self.view.cursorMoved.connect(self._on_cursor)
         self.view.filesDropped.connect(self.on_files_dropped)
         self.view.nudge.connect(self.nudge_selected)
@@ -315,19 +314,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.cmb_orient.currentIndexChanged.connect(self._page_changed)
         pb.addSeparator()
         self.chk_grid = QtWidgets.QCheckBox(tr("Grid"))
+        self.chk_grid.setToolTip(tr("Dynamic grid: finer as you zoom in; snapping follows it."))
         self.chk_snap = QtWidgets.QCheckBox(tr("Smart Snap"))
         self.chk_snap.setChecked(True)
         pb.addWidget(self.chk_grid)
         pb.addWidget(self.chk_snap)
-        self.cmb_grid = QtWidgets.QComboBox()
-        for mm in (1, 2, 5, 10):
-            self.cmb_grid.addItem(f"{mm} mm", mm)
-        self.cmb_grid.setCurrentText("5 mm")
-        pb.addWidget(self.cmb_grid)
         self.chk_grid.toggled.connect(self._grid_changed)
         self.chk_snap.toggled.connect(
             lambda on: setattr(self.scene, "snap_enabled", on))
-        self.cmb_grid.currentIndexChanged.connect(self._grid_changed)
 
     def _build_statusbar(self):
         sb = self.statusBar()
@@ -906,9 +900,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.view.fit_page()
 
     def _grid_changed(self, *_):
-        self.scene.set_grid(mm=self.cmb_grid.currentData(),
-                            visible=self.chk_grid.isChecked())
+        self.scene.set_grid(visible=self.chk_grid.isChecked())
         self.scene.snap_to_grid = self.chk_grid.isChecked()
+        self._on_zoom(self.view._zoom * 100.0)
 
     def _update_page_label(self):
         self.lbl_page.setText(
@@ -931,6 +925,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_cursor(self, x, y):
         self.lbl_pos.setText(
             f"X: {x * constants.MM_PER_PT:6.1f} mm   Y: {y * constants.MM_PER_PT:6.1f} mm")
+
+    def _on_zoom(self, percent):
+        txt = tr("Zoom {0}%").format(round(percent))
+        if self.scene.grid_visible:
+            txt += "  ·  " + tr("Grid {0} mm").format(
+                f"{self.scene.dynamic_grid_mm():g}")
+        self.lbl_zoom.setText(txt)
 
     # ------------------------------------------------------------- dirty/title
     def _is_dirty(self) -> bool:
@@ -1128,14 +1129,14 @@ class MainWindow(QtWidgets.QMainWindow):
         return self.save_project()
 
     def _sync_page_controls(self):
-        for w in (self.cmb_page, self.cmb_orient, self.chk_grid, self.cmb_grid):
+        for w in (self.cmb_page, self.cmb_orient, self.chk_grid):
             w.blockSignals(True)
         self.cmb_page.setCurrentText(self.scene.page_name)
         self.cmb_orient.setCurrentIndex(0 if self.scene.orientation == constants.PORTRAIT else 1)
         self.chk_grid.setChecked(self.scene.grid_visible)
-        self.cmb_grid.setCurrentText(f"{int(self.scene.grid_mm)} mm")
-        for w in (self.cmb_page, self.cmb_orient, self.chk_grid, self.cmb_grid):
+        for w in (self.cmb_page, self.cmb_orient, self.chk_grid):
             w.blockSignals(False)
+        self.scene.snap_to_grid = self.scene.grid_visible
         self._update_page_label()
 
     # ----------------------------------------------------------------- export

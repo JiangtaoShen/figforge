@@ -1,6 +1,7 @@
 """The page scene: draws the page + grid, handles snapping and undo hooks."""
 from __future__ import annotations
 
+import math
 from contextlib import contextmanager
 
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -14,8 +15,14 @@ from .items import BaseItem, CanvasItem
 _DESK = QtGui.QColor(74, 76, 82)
 _PAGE = QtGui.QColor("white")
 _PAGE_BORDER = QtGui.QColor(150, 150, 150)
-_GRID = QtGui.QColor(220, 224, 230)
+_GRID = QtGui.QColor(228, 232, 238)          # minor gridlines
+_GRID_MAJOR = QtGui.QColor(202, 208, 218)    # every 10-mm-decade line
 _GUIDE = QtGui.QColor(255, 40, 170)
+
+
+def _grid_major_mm(minor_mm: float) -> float:
+    """The next power-of-ten step (1-2-5 series minors group under it)."""
+    return float(10.0 ** math.ceil(math.log10(minor_mm) + 1e-9))
 
 
 class PageScene(QtWidgets.QGraphicsScene):
@@ -116,10 +123,21 @@ class PageScene(QtWidgets.QGraphicsScene):
     # ---- grid / snap settings -------------------------------------------
     def set_grid(self, mm: float | None = None, visible: bool | None = None):
         if mm is not None:
-            self.grid_mm = max(0.5, mm)
+            self.grid_mm = max(0.5, mm)      # kept for .ffp compatibility
         if visible is not None:
             self.grid_visible = visible
         self.update()
+
+    def dynamic_grid_mm(self, scale: float | None = None) -> float:
+        """Visio-style adaptive step: the finest 1-2-5 series step whose
+        on-screen pitch is at least GRID_MIN_PX at the given zoom."""
+        if scale is None:
+            scale = self._view_scale()
+        target_mm = (constants.GRID_MIN_PX / max(scale, 1e-6)) * constants.MM_PER_PT
+        for step in constants.GRID_STEPS_MM:
+            if step >= target_mm - 1e-9:
+                return float(step)
+        return float(constants.GRID_STEPS_MM[-1])
 
     # ---- snapping --------------------------------------------------------
     @contextmanager
@@ -173,7 +191,7 @@ class PageScene(QtWidgets.QGraphicsScene):
                 guides.append(("h", best[1]))
 
         if self.snap_to_grid and not getattr(item, "grid_snap_exempt", False):
-            step = constants.mm_to_pt(self.grid_mm)
+            step = constants.mm_to_pt(self.dynamic_grid_mm())  # follow the view
             if dx == 0.0:
                 dx = round(left / step) * step - left
             if dy == 0.0:
@@ -210,20 +228,44 @@ class PageScene(QtWidgets.QGraphicsScene):
         painter.fillRect(page.adjusted(4, 4, 4, 4), QtGui.QColor(0, 0, 0, 60))
         painter.fillRect(page, _PAGE)
         if self.grid_visible:
-            step = constants.mm_to_pt(self.grid_mm)
-            pen = QtGui.QPen(_GRID, 0)
-            painter.setPen(pen)
-            x = step
-            while x < self.page_w:
-                painter.drawLine(QPointF(x, 0), QPointF(x, self.page_h))
-                x += step
-            y = step
-            while y < self.page_h:
-                painter.drawLine(QPointF(0, y), QPointF(self.page_w, y))
-                y += step
+            self._draw_grid(painter, rect)
         painter.setPen(QtGui.QPen(_PAGE_BORDER, 0))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(page)
+
+    def _draw_grid(self, painter, rect):
+        """Dynamic two-tier grid: density follows the view's zoom level."""
+        scale = max(abs(painter.worldTransform().m11()), 1e-6)
+        minor_mm = self.dynamic_grid_mm(scale)
+        minor = constants.mm_to_pt(minor_mm)
+        kmaj = max(1, round(_grid_major_mm(minor_mm) / minor_mm))
+        pen_minor = QtGui.QPen(_GRID, 0)
+        pen_major = QtGui.QPen(_GRID_MAJOR, 0)
+        # draw only the exposed part of the page
+        x0 = max(rect.left(), 0.0)
+        x1 = min(rect.right(), self.page_w)
+        y0 = max(rect.top(), 0.0)
+        y1 = min(rect.bottom(), self.page_h)
+        gy0, gy1 = max(y0, 0.0), min(y1, self.page_h)
+        k = int(math.floor(x0 / minor))
+        while True:
+            x = k * minor
+            if x > x1:
+                break
+            if 0.0 < x < self.page_w:
+                painter.setPen(pen_major if k % kmaj == 0 else pen_minor)
+                painter.drawLine(QPointF(x, gy0), QPointF(x, gy1))
+            k += 1
+        gx0, gx1 = max(x0, 0.0), min(x1, self.page_w)
+        k = int(math.floor(y0 / minor))
+        while True:
+            y = k * minor
+            if y > y1:
+                break
+            if 0.0 < y < self.page_h:
+                painter.setPen(pen_major if k % kmaj == 0 else pen_minor)
+                painter.drawLine(QPointF(gx0, y), QPointF(gx1, y))
+            k += 1
 
     def drawForeground(self, painter, rect):
         super().drawForeground(painter, rect)

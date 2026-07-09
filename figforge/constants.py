@@ -51,6 +51,10 @@ DEFAULT_DPI = 600
 
 # ---- editing ---------------------------------------------------------------
 DEFAULT_GRID_MM = 5.0
+# Dynamic (Visio-style) grid: the finest 1-2-5 step whose on-screen pitch is
+# at least GRID_MIN_PX gets drawn, so zooming in reveals finer gridlines.
+GRID_MIN_PX = 10.0
+GRID_STEPS_MM = (0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0)
 SNAP_THRESHOLD_PX = 7.0       # snap distance measured in on-screen pixels
 ANCHOR_THRESHOLD_PX = 11.0    # line-endpoint -> object-node snap distance
 MIN_ITEM_PT = 4.0            # smallest allowed item dimension
