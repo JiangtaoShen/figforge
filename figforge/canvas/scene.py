@@ -109,15 +109,19 @@ class PageScene(QtWidgets.QGraphicsScene):
 
     def clear(self):
         self._finish_active_edits()
-        # deleting selected items emits selectionChanged mid-teardown; the
-        # panels would then touch half-destroyed items (crashes on macOS)
+        # QGraphicsScene.clear() emits selectionChanged mid-teardown, while
+        # items are half-deleted; block that and notify once the scene is
+        # empty. Order matters: sceneEdited first rebuilds the layers list
+        # (dropping rows that still hold pointers to the deleted items), THEN
+        # selectionChanged syncs against that fresh, empty list. The reverse
+        # order dereferences the stale rows -> use-after-free on macOS.
         self.blockSignals(True)
         try:
             super().clear()
         finally:
             self.blockSignals(False)
-        self.selectionChanged.emit()      # tell the panels, now that it's safe
         self.sceneEdited.emit()
+        self.selectionChanged.emit()
 
     def iter_items(self) -> list[CanvasItem]:
         items = [it for it in self.items() if isinstance(it, CanvasItem)]

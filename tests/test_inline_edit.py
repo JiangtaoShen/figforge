@@ -109,18 +109,17 @@ win.undo_stack.undo()          # removes the host while its editor has focus
 app.processEvents()
 check("undo-add-while-editing safe", tb2.scene() is None and tb2._editor is None)
 
-# scene.clear while editing (New Project path)
+# scene.clear while editing (New Project path); also exercises the
+# layers-panel resync that dereferenced deleted rows on macOS
 win.add_textbox()
 tb3 = [it for it in win.scene.iter_items() if isinstance(it, TextBoxItem)][-1]
+tb3.setSelected(True)
+win.on_selection_changed()     # populate the layers list with a live row
 check("editing before clear", tb3._editor is not None)
-print("DBG before finish_active_edits", flush=True)
-win.scene._finish_active_edits()
-print("DBG after finish_active_edits, editor?", tb3._editor, flush=True)
 win.scene.clear()
-print("DBG after scene.clear", flush=True)
 app.processEvents()
-print("DBG after processEvents", flush=True)
 check("clear-while-editing safe", tb3._editor is None)
+check("layers emptied after clear", win.layers.list.count() == 0)
 
 # ------------------------------------------------------- grid snap exemption
 sc = PageScene()
