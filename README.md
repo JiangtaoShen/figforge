@@ -80,6 +80,9 @@ font files (only the glyphs you used), so files with Chinese text stay small.
   or originals being relocated.
 - **Languages**: English and 简体中文, switchable from the **Language** menu (the choice is
   remembered; a fresh install defaults to English).
+- **Autosave & crash recovery**: unsaved work is snapshotted every 2 minutes; if FigForge (or
+  the machine) dies, the next launch offers to restore it. Internal errors are logged and
+  trigger an immediate rescue snapshot instead of losing your layout.
 - Full undo / redo.
 
 ## Shortcuts

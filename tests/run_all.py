@@ -7,10 +7,17 @@ non-zero if any suite fails — used by CI.
 import os
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = sorted(f for f in os.listdir(HERE)
                  if f.startswith("test_") and f.endswith(".py"))
+
+# isolate autosave/crash-recovery files from the user's real app data (and
+# from other suites): each run gets a throwaway autosave directory
+ENV = dict(os.environ)
+ENV.setdefault("FIGFORGE_AUTOSAVE_DIR",
+               tempfile.mkdtemp(prefix="ff_test_autosave_"))
 
 
 def main() -> int:
@@ -18,7 +25,8 @@ def main() -> int:
     for script in SCRIPTS:
         print(f"\n=== {script} " + "=" * max(0, 58 - len(script)), flush=True)
         # -u: unbuffered, so a hard crash can't swallow earlier PASS/FAIL lines
-        r = subprocess.run([sys.executable, "-u", os.path.join(HERE, script)])
+        r = subprocess.run([sys.executable, "-u", os.path.join(HERE, script)],
+                           env=ENV)
         if r.returncode != 0:
             failed.append(script)
     print("\n" + "=" * 66)

@@ -131,6 +131,17 @@ _ZH = {
         "导入 EPS/PS 需要安装 Ghostscript（命令 gswin64c）。"
         "请安装 Ghostscript，或先把文件转换为 PDF/SVG 后再导入。",
     "Unsupported file type: {0}": "不支持的文件类型：{0}",
+    # autosave / crash recovery
+    "Recovered work found": "发现未保存的工作",
+    "FigForge did not close properly last time. Restore the "
+    "automatically saved work from {0}?":
+        "FigForge 上次未正常退出。要恢复 {0} 的自动保存内容吗？",
+    "Recovered unsaved work — remember to save it.":
+        "已恢复未保存的工作——请记得保存。",
+    "Internal Error": "内部错误",
+    "An internal error occurred. Your work has been auto-saved.\n"
+    "Details were written to:\n{0}":
+        "程序发生内部错误，当前工作已自动保存。\n错误详情已写入日志：\n{0}",
     "Language changed": "语言已切换",
     "The language will switch after restarting. Restart now?":
         "语言将在重启后生效。现在重启吗？",

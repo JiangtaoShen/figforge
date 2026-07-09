@@ -65,6 +65,7 @@ NUDGE_FINE_MM = 0.2        # Ctrl+arrow fine move step
 # ---- project ---------------------------------------------------------------
 PROJECT_EXT = ".ffp"
 PROJECT_FORMAT_VERSION = 1
+AUTOSAVE_INTERVAL_MS = 120_000     # crash-recovery snapshot every 2 minutes
 
 # ---- branding --------------------------------------------------------------
 APP_NAME = "FigForge"
