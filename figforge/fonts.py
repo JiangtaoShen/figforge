@@ -127,11 +127,12 @@ _CJK_REGULAR = (
     # macOS
     "pingfang.ttc", "hiragino sans gb.ttc", "stheiti light.ttc",
     "stheiti medium.ttc", "songti.ttc",
-    # Linux
-    "notosanscjk-regular.ttc", "notosanscjksc-regular.otf",
-    "notosanscjk-sc-regular.otf", "notosanssc-regular.otf",
-    "notosanssc-regular.ttf", "wqy-microhei.ttc", "wqy-zenhei.ttc",
-    "droidsansfallbackfull.ttf",
+    # Linux — TrueType-flavoured first (PyMuPDF can subset those on export;
+    # Noto CJK is CFF and gets embedded whole)
+    "wqy-microhei.ttc", "wqy-zenhei.ttc", "droidsansfallbackfull.ttf",
+    "notosanssc-regular.ttf", "notosanscjk-regular.ttc",
+    "notosanscjksc-regular.otf", "notosanscjk-sc-regular.otf",
+    "notosanssc-regular.otf",
 )
 _CJK_BOLD = ("msyhbd.ttc", "simhei.ttf", "notosanscjk-bold.ttc",
              "notosanscjksc-bold.otf", "wqy-zenhei.ttc") + _CJK_REGULAR

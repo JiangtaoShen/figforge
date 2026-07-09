@@ -17,7 +17,8 @@ def main() -> int:
     failed = []
     for script in SCRIPTS:
         print(f"\n=== {script} " + "=" * max(0, 58 - len(script)), flush=True)
-        r = subprocess.run([sys.executable, os.path.join(HERE, script)])
+        # -u: unbuffered, so a hard crash can't swallow earlier PASS/FAIL lines
+        r = subprocess.run([sys.executable, "-u", os.path.join(HERE, script)])
         if r.returncode != 0:
             failed.append(script)
     print("\n" + "=" * 66)

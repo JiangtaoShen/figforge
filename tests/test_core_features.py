@@ -221,13 +221,14 @@ check("export dlg (tiff): dpi yes, transparent no",
 s = QtCore.QSettings("FigForge", "FigForge")
 saved = s.value("recent_files")
 win._settings().setValue("recent_files", [])
-win._add_recent(r"E:\a.ffp")
-win._add_recent(r"E:\b.ffp")
-win._add_recent(r"E:\a.ffp")
+ra, rb = os.path.join(tmp, "a.ffp"), os.path.join(tmp, "b.ffp")
+win._add_recent(ra)
+win._add_recent(rb)
+win._add_recent(ra)
 lst = win._recent_files()
 check("recent: dedupe + newest first",
       [os.path.basename(p) for p in lst] == ["a.ffp", "b.ffp"], str(lst))
-win._remove_recent(r"E:\b.ffp")
+win._remove_recent(rb)
 check("recent: remove", [os.path.basename(p) for p in win._recent_files()] == ["a.ffp"])
 win._rebuild_recent_menu()
 acts = [a.text() for a in win.m_recent.actions()]
