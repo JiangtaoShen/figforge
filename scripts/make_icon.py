@@ -45,17 +45,6 @@ draw.rounded_rectangle(ax, radius=prr, fill=RED)
 draw.rounded_rectangle([bx0, cy0, cx1, cy0 + hB], radius=prr, fill=GREEN)
 draw.rounded_rectangle([bx0, cy0 + hB + g, cx1, cy1], radius=prr, fill=AMBER)
 
-# ---- mini line chart inside panel A --------------------------------------
-pad = int(wA * 0.17)
-lx0, ly0, lx1, ly1 = ax[0] + pad, ax[1] + pad, ax[2] - pad, ax[3] - pad
-ys = [0.78, 0.52, 0.64, 0.30, 0.44, 0.12]
-pts = [(lx0 + (lx1 - lx0) * i / (len(ys) - 1), ly0 + (ly1 - ly0) * y)
-       for i, y in enumerate(ys)]
-draw.line(pts, fill=(255, 255, 255), width=int(S * 0.013), joint="curve")
-dot = int(S * 0.0125)
-for x, y in pts:
-    draw.ellipse([x - dot, y - dot, x + dot, y + dot], fill=(255, 255, 255))
-
 # ---- save ----------------------------------------------------------------
 base = img.resize((256, 256), Image.LANCZOS)
 base.save(os.path.join(OUT, "icon.png"))
