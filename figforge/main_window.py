@@ -1,7 +1,9 @@
 """The application main window — wires the canvas, panels, menus and actions."""
 from __future__ import annotations
 
+import json
 import os
+import time
 import uuid
 
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -116,6 +118,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.resize(1280, 840)
         self._update_title()
         QtCore.QTimer.singleShot(0, self.view.fit_page)
+
+        self._last_autosave_idx = -1
+        self._autosave_timer = QtCore.QTimer(self)
+        self._autosave_timer.setInterval(constants.AUTOSAVE_INTERVAL_MS)
+        self._autosave_timer.timeout.connect(self._do_autosave)
+        self._autosave_timer.start()
+        QtCore.QTimer.singleShot(0, self._offer_restore)
 
     # ------------------------------------------------------------------ docks
     def _build_docks(self):
@@ -916,6 +925,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # --------------------------------------------------------------- signals
     def on_selection_changed(self):
+        if self._suspend:
+            return
         sel = self.scene.selectedItems()
         self.properties.set_selection(sel)
         self.layers.sync_from_scene()
@@ -966,6 +977,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.undo_stack.cleanChanged.disconnect()
         except (RuntimeError, TypeError):
             pass
+        self._autosave_timer.stop()
+        self._clear_autosave()
         project.cleanup_tempdir(self._tempdir)
         self._tempdir = None
         args = [] if getattr(sys, "frozen", False) else sys.argv
@@ -1000,6 +1013,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.undo_stack.clear()
         self.undo_stack.setClean()
         self._extra_dirty = False
+        self._clear_autosave()
         self._sync_page_controls()
         self.layers.refresh()
         self.on_selection_changed()
@@ -1031,6 +1045,14 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, tr("Open Failed"), str(e))
             return
+        self._apply_loaded_project(config, items, tempdir)
+        self.current_path = path
+        self._extra_dirty = False
+        self._clear_autosave()
+        self._add_recent(path)
+        self._update_title()
+
+    def _apply_loaded_project(self, config, items, tempdir):
         self._suspend = True
         self.scene.clear()
         self.scene._z_counter = 1.0
@@ -1051,20 +1073,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         project.cleanup_tempdir(self._tempdir)
         self._tempdir = tempdir
-        self.current_path = path
         self._fig_count = sum(1 for it in items if isinstance(it, FigureItem))
         self._label_count = sum(1 for it in items if isinstance(it, LabelItem))
         self._tb_count = sum(1 for it in items if isinstance(it, TextBoxItem))
         self._line_count = sum(1 for it in items if isinstance(it, LineItem))
         self.undo_stack.clear()
         self.undo_stack.setClean()
-        self._extra_dirty = False
         self._sync_page_controls()
         self.layers.refresh()
         self.on_selection_changed()
         self.view.fit_page()
-        self._add_recent(path)
-        self._update_title()
 
     def save_project(self) -> bool:
         if not self.current_path:
@@ -1076,8 +1094,106 @@ class MainWindow(QtWidgets.QMainWindow):
             return False
         self.undo_stack.setClean()
         self._extra_dirty = False
+        self._clear_autosave()                # the file is safe on disk now
         self._add_recent(self.current_path)
         self._update_title()
+        return True
+
+    # ------------------------------------------------- autosave / recovery
+    @staticmethod
+    def _autosave_dir() -> str:
+        d = os.environ.get("FIGFORGE_AUTOSAVE_DIR")
+        if not d:
+            base = QtCore.QStandardPaths.writableLocation(
+                QtCore.QStandardPaths.StandardLocation.AppDataLocation)
+            d = os.path.join(base, "autosave")
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    def _autosave_paths(self) -> tuple[str, str]:
+        d = self._autosave_dir()
+        return os.path.join(d, "autosave.ffp"), os.path.join(d, "autosave.json")
+
+    def _do_autosave(self):
+        """Timer tick: snapshot only when there is unsaved, new work."""
+        if not self._is_dirty() or not self.scene.iter_items():
+            return
+        idx = self.undo_stack.index()
+        if idx == self._last_autosave_idx:
+            return
+        try:
+            self.rescue_autosave()
+            self._last_autosave_idx = idx
+        except Exception:
+            pass                     # autosave must never disturb editing
+
+    def rescue_autosave(self):
+        """Write a crash-recovery snapshot immediately (also called by the
+        global exception hook)."""
+        if not self.scene.iter_items():
+            return
+        ffp, meta = self._autosave_paths()
+        project.save_project(ffp, self.scene)
+        with open(meta, "w", encoding="utf-8") as fh:
+            json.dump({"original_path": self.current_path or "",
+                       "saved_at": time.strftime("%Y-%m-%d %H:%M")}, fh)
+
+    def _clear_autosave(self):
+        for p in self._autosave_paths():
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+        self._last_autosave_idx = -1
+
+    def _pending_autosave(self):
+        ffp, meta = self._autosave_paths()
+        if not os.path.isfile(ffp):
+            return None
+        info = {}
+        try:
+            with open(meta, "r", encoding="utf-8") as fh:
+                info = json.load(fh)
+        except Exception:
+            pass
+        return ffp, info
+
+    def _offer_restore(self):
+        """On startup: a leftover autosave means the last session crashed."""
+        pending = self._pending_autosave()
+        if pending is None:
+            return
+        _ffp, info = pending
+        when = info.get("saved_at") or "?"
+        r = QtWidgets.QMessageBox.question(
+            self, tr("Recovered work found"),
+            tr("FigForge did not close properly last time. Restore the "
+               "automatically saved work from {0}?").format(when),
+            QtWidgets.QMessageBox.StandardButton.Yes
+            | QtWidgets.QMessageBox.StandardButton.No)
+        if r == QtWidgets.QMessageBox.StandardButton.Yes:
+            self._restore_autosave()
+        else:
+            self._clear_autosave()
+
+    def _restore_autosave(self) -> bool:
+        pending = self._pending_autosave()
+        if pending is None:
+            return False
+        ffp, info = pending
+        try:
+            config, items, tempdir = project.load_project(ffp)
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, tr("Open Failed"), str(e))
+            self._clear_autosave()
+            return False
+        self._apply_loaded_project(config, items, tempdir)
+        self.current_path = info.get("original_path") or None
+        self._extra_dirty = True                 # recovered ⇒ needs saving
+        self._clear_autosave()
+        self._update_title()
+        self.statusBar().showMessage(
+            tr("Recovered unsaved work — remember to save it."), 8000)
         return True
 
     # ------------------------------------------------------------ recent files
@@ -1232,6 +1348,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.undo_stack.cleanChanged.disconnect()
             except (RuntimeError, TypeError):
                 pass
+            self._autosave_timer.stop()
+            self._clear_autosave()          # clean exit ⇒ nothing to recover
             project.cleanup_tempdir(self._tempdir)
             event.accept()
         else:

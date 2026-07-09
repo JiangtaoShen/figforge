@@ -96,7 +96,15 @@ class PageScene(QtWidgets.QGraphicsScene):
             if getattr(it, "_editor", None) is not None:
                 it.finish_inline_edit(commit=False)
         self.setFocusItem(None)
-        super().clear()
+        # deleting selected items emits selectionChanged mid-teardown; the
+        # panels would then touch half-destroyed items (crashes on macOS)
+        self.blockSignals(True)
+        try:
+            super().clear()
+        finally:
+            self.blockSignals(False)
+        self.selectionChanged.emit()      # tell the panels, now that it's safe
+        self.sceneEdited.emit()
 
     def iter_items(self) -> list[CanvasItem]:
         items = [it for it in self.items() if isinstance(it, CanvasItem)]
