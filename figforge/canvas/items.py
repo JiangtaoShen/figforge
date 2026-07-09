@@ -735,6 +735,9 @@ class TextBoxItem(InlineTextEdit, BaseItem):
         self.fill = False
         self.fill_color = QtGui.QColor("white")
         self.fill_opacity = 1.0
+        self.corner_radius = 0.0          # 0 = rectangle, >0 = rounded (pt)
+        self._adj_radius = False
+        self._radius_at_press = 0.0
         self._w, self._h = w, h
 
     def font(self):
@@ -751,17 +754,38 @@ class TextBoxItem(InlineTextEdit, BaseItem):
                 "center": Qt.AlignmentFlag.AlignHCenter,
                 "right": Qt.AlignmentFlag.AlignRight}[self.align]
 
+    def _eff_radius(self) -> float:
+        """Corner radius clamped so the arcs always fit the frame."""
+        if self.corner_radius <= 0:
+            return 0.0
+        return min(self.corner_radius, self._w / 2, self._h / 2)
+
+    def set_corner_radius(self, r: float):
+        self.corner_radius = max(0.0, float(r))
+        self.update()
+        self.geometryChanged.emit()
+
     def paint_content(self, painter):
         rect = QRectF(0, 0, self._w, self._h)
+        r = self._eff_radius()
         if self.fill:
             col = QtGui.QColor(self.fill_color)
             col.setAlphaF(max(0.0, min(1.0, self.fill_opacity)))
-            painter.fillRect(rect, col)
+            if r > 0:
+                path = QtGui.QPainterPath()
+                path.addRoundedRect(rect, r, r)
+                painter.fillPath(path, col)
+            else:
+                painter.fillRect(rect, col)
         if self.border and self.border_width > 0:
             painter.setPen(QtGui.QPen(self.border_color, self.border_width))
             painter.setBrush(Qt.BrushStyle.NoBrush)
             d = self.border_width / 2
-            painter.drawRect(rect.adjusted(d, d, -d, -d))
+            if r > 0:
+                rr = max(r - d, 0.0)
+                painter.drawRoundedRect(rect.adjusted(d, d, -d, -d), rr, rr)
+            else:
+                painter.drawRect(rect.adjusted(d, d, -d, -d))
         if self._editor is not None:      # the in-place editor draws the text
             return
         painter.setFont(self.font())
@@ -778,11 +802,87 @@ class TextBoxItem(InlineTextEdit, BaseItem):
     def apply_style(self, **kw):
         for k in ("text", "family", "size_pt", "bold", "italic", "color",
                   "align", "border", "border_color", "border_width",
-                  "fill", "fill_color", "fill_opacity"):
+                  "fill", "fill_color", "fill_opacity", "corner_radius"):
             if k in kw and kw[k] is not None:
                 setattr(self, k, kw[k])
         self.update()
         self.geometryChanged.emit()
+
+    # ---- corner-radius handle (PowerPoint-style diamond) ------------------
+    def _radius_handle_pos(self) -> QPointF:
+        return QPointF(self._eff_radius(), 0.0)
+
+    def _radius_handle_at(self, pos) -> bool:
+        if self.corner_radius <= 0 or not self.isSelected():
+            return False
+        hs = self._handle_size()
+        c = self._radius_handle_pos()
+        if c.x() < hs * 1.5:          # too close to the nw resize handle
+            return False
+        return QRectF(c.x() - hs * 0.9, c.y() - hs * 0.9,
+                      hs * 1.8, hs * 1.8).contains(pos)
+
+    def paint(self, painter, option, widget=None):
+        super().paint(painter, option, widget)
+        if not self.isSelected() or self.corner_radius <= 0:
+            return
+        hs = self._handle_size()
+        c = self._radius_handle_pos()
+        poly = QtGui.QPolygonF([
+            QPointF(c.x(), c.y() - hs * 0.75),
+            QPointF(c.x() + hs * 0.75, c.y()),
+            QPointF(c.x(), c.y() + hs * 0.75),
+            QPointF(c.x() - hs * 0.75, c.y()),
+        ])
+        painter.setPen(QtGui.QPen(_SEL_COLOR, 1.0 / self._eff_scale()))
+        painter.setBrush(QtGui.QColor(255, 193, 44))
+        painter.drawPolygon(poly)
+
+    def shape(self) -> QtGui.QPainterPath:
+        path = super().shape()
+        if self.isSelected() and self.corner_radius > 0:
+            hs = self._handle_size()
+            c = self._radius_handle_pos()
+            path.addRect(QRectF(c.x() - hs, c.y() - hs, 2 * hs, 2 * hs))
+        return path
+
+    def hoverMoveEvent(self, event):
+        if self._radius_handle_at(event.pos()):
+            self.setCursor(Qt.CursorShape.SizeHorCursor)
+            return
+        super().hoverMoveEvent(event)
+
+    def mousePressEvent(self, event):
+        if (event.button() == Qt.MouseButton.LeftButton
+                and self._radius_handle_at(event.pos())):
+            self._adj_radius = True
+            self._radius_at_press = self.corner_radius
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._adj_radius:
+            r = event.pos().x()
+            if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                step = constants.mm_to_pt(1.0)     # snap to whole millimetres
+                r = round(r / step) * step
+            self.set_corner_radius(max(0.0, min(r, self._w / 2, self._h / 2)))
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if self._adj_radius:
+            self._adj_radius = False
+            sc = self.scene()
+            if (sc is not None and hasattr(sc, "push_radius_undo")
+                    and self.corner_radius != self._radius_at_press):
+                sc.push_radius_undo(self, self._radius_at_press,
+                                    self.corner_radius)
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
     def render_to_pdf(self, page, fontreg, keep_open):
         x, y, w, h = self.get_geometry()
@@ -795,14 +895,22 @@ class TextBoxItem(InlineTextEdit, BaseItem):
             Returns (doc, deficit); deficit > 0 means the text did not fit."""
             doc = fitz.open()
             ip = doc.new_page(width=w, height=page_h)
+            r = self._eff_radius()
             if self.fill:
+                # float radius = fraction of the shorter side (circular arcs)
+                rad = min(r / max(min(w, h), 1e-6), 0.5) if r > 0 else None
                 ip.draw_rect(fitz.Rect(0, 0, w, h), color=None,
                              fill=_rgb(self.fill_color),
-                             fill_opacity=max(0.0, min(1.0, self.fill_opacity)))
+                             fill_opacity=max(0.0, min(1.0, self.fill_opacity)),
+                             radius=rad)
             if self.border and self.border_width > 0:
                 d = self.border_width / 2
-                ip.draw_rect(fitz.Rect(d, d, w - d, h - d),
-                             color=_rgb(self.border_color), width=self.border_width)
+                br = fitz.Rect(d, d, w - d, h - d)
+                rr = max(r - d, 0.0)
+                rad = (min(rr / max(min(br.width, br.height), 1e-6), 0.5)
+                       if rr > 0 else None)
+                ip.draw_rect(br, color=_rgb(self.border_color),
+                             width=self.border_width, radius=rad)
             deficit = 0.0
             if text:
                 inner = fitz.Rect(self.PAD, self.PAD,
@@ -839,7 +947,8 @@ class TextBoxItem(InlineTextEdit, BaseItem):
                   "border": self.border, "border_color": self.border_color.name(),
                   "border_width": self.border_width, "fill": self.fill,
                   "fill_color": self.fill_color.name(),
-                  "fill_opacity": self.fill_opacity})
+                  "fill_opacity": self.fill_opacity,
+                  "corner_radius": self.corner_radius})
         return d
 
     @classmethod
@@ -855,6 +964,7 @@ class TextBoxItem(InlineTextEdit, BaseItem):
         item.fill = d.get("fill", False)
         item.fill_color = QtGui.QColor(d.get("fill_color", "#ffffff"))
         item.fill_opacity = d.get("fill_opacity", 1.0)
+        item.corner_radius = d.get("corner_radius", 0.0)
         item.apply_base_dict(d)
         return item
 

@@ -122,6 +122,11 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         # --- text-box frame (border / fill) -----------------------------
         self.box_frame = QtWidgets.QGroupBox(tr("Text Box Border / Fill"))
         bf = QtWidgets.QFormLayout(self.box_frame)
+        self.cmb_shape = QtWidgets.QComboBox()
+        self.cmb_shape.addItems([tr("Rectangle"), tr("Rounded rectangle")])
+        self.spin_radius = self._spin(0, 50, 1, " mm", 0.5)
+        bf.addRow(tr("Shape"), self.cmb_shape)
+        bf.addRow(tr("Corner radius"), self.spin_radius)
         self.chk_border = QtWidgets.QCheckBox(tr("Show border"))
         self.spin_bw = self._spin(0, 20, 1, " pt", 0.5)
         self.btn_border_color = QtWidgets.QPushButton(tr("Border color"))
@@ -135,6 +140,8 @@ class PropertiesPanel(QtWidgets.QScrollArea):
         bf.addRow("", self.btn_fill_color)
         bf.addRow(tr("Background transparency"), self.spin_alpha)
         lay.addWidget(self.box_frame)
+        self.cmb_shape.currentIndexChanged.connect(self._shape_changed)
+        self.spin_radius.editingFinished.connect(self._apply_frame)
         self.chk_border.toggled.connect(self._apply_frame)
         self.spin_bw.editingFinished.connect(self._apply_frame)
         self.btn_border_color.clicked.connect(lambda: self._pick_frame_color("border"))
@@ -218,6 +225,9 @@ class PropertiesPanel(QtWidgets.QScrollArea):
             self.info.setText(tr("Source: {0}").format(src))
         elif is_line:
             self.info.setText(tr("Drag the end dots to adjust the line."))
+        elif is_tb and single.corner_radius > 0:
+            self.info.setText(tr("Double-click the object to edit text.") + " "
+                              + tr("Drag the diamond to adjust the corner."))
         else:
             self.info.setText(tr("Double-click the object to edit text."))
 
@@ -234,6 +244,8 @@ class PropertiesPanel(QtWidgets.QScrollArea):
             self._loading = True
             self.ed_text.setText(it.text)
             self._loading = False
+        if isinstance(it, TextBoxItem) and not self.spin_radius.hasFocus():
+            self._load_frame()      # live-sync while dragging the diamond
 
     # ------------------------------------------------------------- loaders
     def _load_geometry(self):
@@ -269,6 +281,9 @@ class PropertiesPanel(QtWidgets.QScrollArea):
     def _load_frame(self):
         it = self._item
         self._loading = True
+        self.cmb_shape.setCurrentIndex(1 if it.corner_radius > 0 else 0)
+        self.spin_radius.setValue(it.corner_radius * _MM)
+        self.spin_radius.setEnabled(it.corner_radius > 0)
         self.chk_border.setChecked(it.border)
         self.spin_bw.setValue(it.border_width)
         self._border_color = QtGui.QColor(it.border_color)
@@ -395,16 +410,32 @@ class PropertiesPanel(QtWidgets.QScrollArea):
             self._tint(self.btn_color, c)
             self._apply_style()
 
+    def _shape_changed(self):
+        if self._loading or not isinstance(self._item, TextBoxItem):
+            return
+        self._loading = True
+        rounded = self.cmb_shape.currentIndex() == 1
+        if rounded and self.spin_radius.value() <= 0:
+            self.spin_radius.setValue(2.0)          # sensible default corner
+        if not rounded:
+            self.spin_radius.setValue(0.0)
+        self.spin_radius.setEnabled(rounded)
+        self._loading = False
+        self._apply_frame()
+
     def _apply_frame(self):
         it = self._item
         if self._loading or not isinstance(it, TextBoxItem):
             return
         before = it.to_dict()
+        radius = (self.spin_radius.value() * _PT
+                  if self.cmb_shape.currentIndex() == 1 else 0.0)
         new = dict(border=self.chk_border.isChecked(), border_width=self.spin_bw.value(),
                    border_color=QtGui.QColor(self._border_color),
                    fill=self.chk_fill.isChecked(),
                    fill_color=QtGui.QColor(self._fill_color),
-                   fill_opacity=1.0 - self.spin_alpha.value() / 100.0)
+                   fill_opacity=1.0 - self.spin_alpha.value() / 100.0,
+                   corner_radius=radius)
 
         def do():
             it.apply_style(**new)
@@ -413,7 +444,8 @@ class PropertiesPanel(QtWidgets.QScrollArea):
             it.apply_style(border=before["border"], border_width=before["border_width"],
                            border_color=QtGui.QColor(before["border_color"]),
                            fill=before["fill"], fill_color=QtGui.QColor(before["fill_color"]),
-                           fill_opacity=before["fill_opacity"])
+                           fill_opacity=before["fill_opacity"],
+                           corner_radius=before["corner_radius"])
 
         self._push(FuncCommand(tr("Modify text box"), do, undo))
 

@@ -553,6 +553,8 @@ class MainWindow(QtWidgets.QMainWindow):
             dup.border_color = QtGui.QColor(it.border_color)
             dup.fill = it.fill
             dup.fill_color = QtGui.QColor(it.fill_color)
+            dup.fill_opacity = it.fill_opacity
+            dup.corner_radius = it.corner_radius
             dup.set_name(f"{tr('Text Box')} {self._tb_count}")
             return dup
         if isinstance(it, LineItem):

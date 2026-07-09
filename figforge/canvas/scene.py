@@ -110,6 +110,14 @@ class PageScene(QtWidgets.QGraphicsScene):
                 lambda: item.set_state(new),
                 lambda: item.set_state(old)))
 
+    def push_radius_undo(self, item, old, new):
+        """Undo for the corner-radius diamond handle."""
+        if self.undo_stack is not None:
+            self.undo_stack.push(FuncCommand(
+                tr("Adjust corner radius"),
+                lambda: item.set_corner_radius(new),
+                lambda: item.set_corner_radius(old)))
+
     def push_text_undo(self, item, old, new):
         """Undo for in-place text edits."""
         if self.undo_stack is not None:
