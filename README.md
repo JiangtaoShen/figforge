@@ -16,12 +16,24 @@ what you get.
 
 ## Run
 
+Windows:
+
 ```bat
 py -m pip install -r requirements.txt
 py run.py
 ```
 
-Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally needs Ghostscript.)
+macOS / Linux:
+
+```bash
+python3 -m pip install -r requirements.txt
+python3 run.py
+```
+
+Requires Python 3.10+ (PySide6, PyMuPDF, Pillow, fontTools). Fonts are resolved from the
+system font folders on **Windows, macOS and Linux** alike; exported PDFs embed **subsetted**
+font files (only the glyphs you used), so files with Chinese text stay small.
+(Importing EPS/PS additionally needs Ghostscript: `gswin64c` on Windows, `gs` elsewhere.)
 
 ## Features
 
@@ -84,15 +96,21 @@ Requires Python 3.10+, PySide6, PyMuPDF, Pillow. (Importing EPS/PS additionally 
 | Fit page / Zoom in / Zoom out | Ctrl+0 / Ctrl++ / Ctrl+- |
 | Zoom (Ctrl+wheel), Pan (Space-drag or middle-drag) | |
 
-## Build a standalone .exe (optional)
+## Build a standalone app (optional)
+
+Use a **clean virtual environment** so only the libraries FigForge needs get bundled
+(otherwise PyInstaller drags in everything living in your global Python):
 
 ```bat
-py -m pip install pyinstaller
-py -m PyInstaller --noconfirm --windowed --name FigForge run.py
+py -m venv C:\ffb
+C:\ffb\Scripts\python -m pip install -r requirements.txt pyinstaller
+C:\ffb\Scripts\python -m PyInstaller --noconfirm --windowed ^
+    --icon figforge/resources/icon.ico --exclude-module tkinter --name FigForge run.py
 ```
 
-The app appears under `dist\FigForge\`; double-click `FigForge.exe`. When moving it to another
-machine, copy the **whole `FigForge` folder** (the `_internal` folder holds the runtime).
+The app appears under `dist\FigForge\` (~250 MB); double-click `FigForge.exe`. When moving it
+to another machine, copy the **whole `FigForge` folder** (the `_internal` folder holds the
+runtime). The same commands with `python3` produce a native bundle on macOS / Linux.
 
 ## Project layout
 

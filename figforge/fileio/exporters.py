@@ -69,6 +69,12 @@ def export_pdf(scene, path: str, white_bg: bool = True,
     out, keep = build_document(scene, white_bg=white_bg,
                                crop_margin_pt=crop_margin_pt)
     try:
+        try:
+            # keep only the glyphs actually used — embedded CJK fonts would
+            # otherwise add many MB per file (needs fontTools; skip if absent)
+            out.subset_fonts()
+        except Exception:
+            pass
         out.save(path, garbage=4, deflate=True, clean=True)
     finally:
         _close(out, keep)
