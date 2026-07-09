@@ -55,11 +55,14 @@ def _rgb(c: QtGui.QColor):
     return (c.red() / 255, c.green() / 255, c.blue() / 255)
 
 
-def _place(page, src, x, y, w, h, angle):
-    """Show single-page PDF `src` at (x,y,w,h) on `page`, rotated about centre."""
+def _place(page, src, x, y, w, h, angle, clip=None):
+    """Show single-page PDF `src` at (x,y,w,h) on `page`, rotated about centre.
+
+    ``clip`` optionally restricts to a sub-rect of the source page (used by
+    text boxes whose text canvas is taller than the visible frame)."""
     if abs(angle) < 1e-6:
         page.show_pdf_page(fitz.Rect(x, y, x + w, y + h), src, 0,
-                           keep_proportion=False)
+                           keep_proportion=False, clip=clip)
         return
     ang = round(angle)
     th = math.radians(ang)
@@ -67,7 +70,7 @@ def _place(page, src, x, y, w, h, angle):
     ew, eh = w * c + h * s, w * s + h * c          # rotated bounding box
     cx, cy = x + w / 2, y + h / 2
     page.show_pdf_page(fitz.Rect(cx - ew / 2, cy - eh / 2, cx + ew / 2, cy + eh / 2),
-                       src, 0, rotate=int(EXPORT_ROT_SIGN * ang) % 360)
+                       src, 0, rotate=int(EXPORT_ROT_SIGN * ang) % 360, clip=clip)
 
 
 class CanvasItem(QtWidgets.QGraphicsObject):
@@ -687,23 +690,50 @@ class TextBoxItem(BaseItem):
 
     def render_to_pdf(self, page, fontreg, keep_open):
         x, y, w, h = self.get_geometry()
-        inter = fitz.open()
-        ip = inter.new_page(width=w, height=h)
-        keep_open.append(inter)
-        if self.fill:
-            ip.draw_rect(fitz.Rect(0, 0, w, h), color=None, fill=_rgb(self.fill_color),
-                         fill_opacity=max(0.0, min(1.0, self.fill_opacity)))
-        if self.border and self.border_width > 0:
-            d = self.border_width / 2
-            ip.draw_rect(fitz.Rect(d, d, w - d, h - d),
-                         color=_rgb(self.border_color), width=self.border_width)
         rf = fonts.resolve_export_font(self.family, self.bold, self.italic, self.text)
-        inner = fitz.Rect(self.PAD, self.PAD, w - self.PAD, h - self.PAD)
         align = {"left": 0, "center": 1, "right": 2}[self.align]
-        ip.insert_textbox(inner, self.text, fontname=rf.fontname,
-                          fontfile=rf.fontfile, fontsize=self.size_pt,
-                          color=_rgb(self.color), align=align)
-        _place(page, inter, x, y, w, h, self.rotation())
+        text = self.text if self.text and self.text.strip() else ""
+
+        def build(page_h):
+            """Draw frame + text on a w x page_h page.
+            Returns (doc, deficit); deficit > 0 means the text did not fit."""
+            doc = fitz.open()
+            ip = doc.new_page(width=w, height=page_h)
+            if self.fill:
+                ip.draw_rect(fitz.Rect(0, 0, w, h), color=None,
+                             fill=_rgb(self.fill_color),
+                             fill_opacity=max(0.0, min(1.0, self.fill_opacity)))
+            if self.border and self.border_width > 0:
+                d = self.border_width / 2
+                ip.draw_rect(fitz.Rect(d, d, w - d, h - d),
+                             color=_rgb(self.border_color), width=self.border_width)
+            deficit = 0.0
+            if text:
+                inner = fitz.Rect(self.PAD, self.PAD,
+                                  w - self.PAD, page_h - self.PAD)
+                if inner.width > 1 and inner.height > 1:
+                    rc = ip.insert_textbox(inner, text, fontname=rf.fontname,
+                                           fontfile=rf.fontfile,
+                                           fontsize=self.size_pt,
+                                           color=_rgb(self.color), align=align)
+                    deficit = -rc if rc < 0 else 0.0
+                else:                    # frame smaller than the padding
+                    deficit = 2 * self.PAD + 1.5 * self.size_pt
+            return doc, deficit
+
+        # insert_textbox writes NOTHING when the whole text does not fit,
+        # while the editor clips at the frame. So retry on a taller canvas
+        # until the text fits, then clip back to the frame on placement.
+        inter, deficit = build(h)
+        page_h, tries = h, 0
+        while deficit > 0 and tries < 4:
+            inter.close()
+            page_h += deficit + 2 * self.size_pt + 2 * self.PAD
+            inter, deficit = build(page_h)
+            tries += 1
+        keep_open.append(inter)
+        _place(page, inter, x, y, w, h, self.rotation(),
+               clip=fitz.Rect(0, 0, w, h))
 
     def to_dict(self):
         d = self.base_dict()
