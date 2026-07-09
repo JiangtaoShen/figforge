@@ -4,6 +4,8 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
+[![CI](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml/badge.svg)](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml)
+
 **[⬇ Download for Windows (v0.2.0)](https://github.com/JiangtaoShen/figforge/releases/latest)** — unzip and run `FigForge.exe`, no Python needed.
 
 A lightweight, **vector-preserving** layout tool for academic figures — a trimmed-down

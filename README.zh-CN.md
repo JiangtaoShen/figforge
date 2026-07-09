@@ -4,6 +4,8 @@
 
 [English](README.md) | **简体中文**
 
+[![CI](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml/badge.svg)](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml)
+
 **[⬇ Windows 版下载（v0.2.0）](https://github.com/JiangtaoShen/figforge/releases/latest)** —— 解压后双击 `FigForge.exe`，无需安装 Python。
 
 一个面向学术论文的**轻量图排版工具**（专业平面设计软件的精简版），用于把多张子图拼成
