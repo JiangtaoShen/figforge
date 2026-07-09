@@ -86,12 +86,14 @@ class _TextEditorItem(QtWidgets.QGraphicsTextItem):
 
     def focusOutEvent(self, event):
         super().focusOutEvent(event)
-        self._host.finish_inline_edit()
+        if self._host is not None:            # host may be torn down already
+            self._host.finish_inline_edit()
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key.Key_Escape or (
-                event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
-                and event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+        if self._host is not None and (
+                event.key() == Qt.Key.Key_Escape or (
+                    event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+                    and event.modifiers() & Qt.KeyboardModifier.ControlModifier)):
             event.accept()
             self._host.finish_inline_edit()
             return
@@ -161,9 +163,12 @@ class InlineTextEdit:
                 pass
         new = ed.toPlainText()
         sc = self.scene()
-        # detach IME/focus first, then defer the C++ deletion via
-        # deleteLater(): destroying the editor synchronously inside its own
-        # event (Escape/focus-out) is a use-after-free (crashes on macOS)
+        # Tear the editor down safely. deleteLater() keeps it alive until the
+        # event loop drains, during which the host may already be destroyed
+        # (e.g. scene.clear() deletes the host right after this returns), so
+        # sever the back-reference and stop input first — otherwise a pending
+        # macOS focus/IME callback dereferences a dead host (use-after-free).
+        ed._host = None
         ed.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         ed.clearFocus()
         ed.setParentItem(None)
