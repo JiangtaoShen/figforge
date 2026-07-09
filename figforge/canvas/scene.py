@@ -82,20 +82,33 @@ class PageScene(QtWidgets.QGraphicsScene):
             self.addItem(item)
         self.sceneEdited.emit()
 
+    def _finish_active_edits(self):
+        """Abort any live in-place editor and let its deferred deletion run
+        NOW, while the host items are still alive. Destroying a focused
+        QGraphicsTextItem is deferred via deleteLater(); if the host is torn
+        down (removeItem / clear) before that drains, a pending macOS
+        focus/IME callback dereferences a dead host (use-after-free). Draining
+        here keeps the editor's lifetime strictly inside the host's."""
+        had = False
+        for it in list(self.items()):
+            if getattr(it, "_editor", None) is not None:
+                it.finish_inline_edit(commit=False)
+                had = True
+        if had:
+            self.setFocusItem(None)
+            # run the editors' queued deleteLater NOW (host still alive)
+            QtWidgets.QApplication.sendPostedEvents(
+                None, QtCore.QEvent.Type.DeferredDelete)
+
     def unregister_item(self, item):
-        # abort (not commit) a live in-place edit first: removing an item
-        # whose child editor holds focus re-enters the scene mid-removal
         if getattr(item, "_editor", None) is not None:
-            item.finish_inline_edit(commit=False)
+            self._finish_active_edits()
         if item.scene() is self:
             self.removeItem(item)
         self.sceneEdited.emit()
 
     def clear(self):
-        for it in list(self.items()):
-            if getattr(it, "_editor", None) is not None:
-                it.finish_inline_edit(commit=False)
-        self.setFocusItem(None)
+        self._finish_active_edits()
         # deleting selected items emits selectionChanged mid-teardown; the
         # panels would then touch half-destroyed items (crashes on macOS)
         self.blockSignals(True)
