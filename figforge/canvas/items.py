@@ -161,9 +161,15 @@ class InlineTextEdit:
                 pass
         new = ed.toPlainText()
         sc = self.scene()
+        # detach IME/focus first, then defer the C++ deletion via
+        # deleteLater(): destroying the editor synchronously inside its own
+        # event (Escape/focus-out) is a use-after-free (crashes on macOS)
+        ed.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+        ed.clearFocus()
         ed.setParentItem(None)
         if ed.scene() is not None:
             ed.scene().removeItem(ed)
+        ed.deleteLater()
         old = self.text
         if commit and new != old:
             if sc is not None and getattr(sc, "push_text_undo", None) is not None:

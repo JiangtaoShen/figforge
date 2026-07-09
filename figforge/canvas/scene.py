@@ -92,9 +92,10 @@ class PageScene(QtWidgets.QGraphicsScene):
         self.sceneEdited.emit()
 
     def clear(self):
-        for it in self.items():
+        for it in list(self.items()):
             if getattr(it, "_editor", None) is not None:
                 it.finish_inline_edit(commit=False)
+        self.setFocusItem(None)
         super().clear()
 
     def iter_items(self) -> list[CanvasItem]:
