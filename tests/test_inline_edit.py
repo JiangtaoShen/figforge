@@ -113,8 +113,13 @@ check("undo-add-while-editing safe", tb2.scene() is None and tb2._editor is None
 win.add_textbox()
 tb3 = [it for it in win.scene.iter_items() if isinstance(it, TextBoxItem)][-1]
 check("editing before clear", tb3._editor is not None)
+print("DBG before finish_active_edits", flush=True)
+win.scene._finish_active_edits()
+print("DBG after finish_active_edits, editor?", tb3._editor, flush=True)
 win.scene.clear()
+print("DBG after scene.clear", flush=True)
 app.processEvents()
+print("DBG after processEvents", flush=True)
 check("clear-while-editing safe", tb3._editor is None)
 
 # ------------------------------------------------------- grid snap exemption
