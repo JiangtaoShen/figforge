@@ -146,7 +146,10 @@ class InlineTextEdit:
         self.update()             # host stops painting its own text
         ed.setFocus(Qt.FocusReason.OtherFocusReason)
 
-    def finish_inline_edit(self):
+    def finish_inline_edit(self, commit: bool = True):
+        """End editing. ``commit=False`` discards the in-flight text — used
+        when the host item is being removed from the scene, where committing
+        would mutate the scene / undo stack re-entrantly (crashes on macOS)."""
         ed = getattr(self, "_editor", None)
         if ed is None:
             return
@@ -162,7 +165,7 @@ class InlineTextEdit:
         if ed.scene() is not None:
             ed.scene().removeItem(ed)
         old = self.text
-        if new != old:
+        if commit and new != old:
             if sc is not None and getattr(sc, "push_text_undo", None) is not None:
                 sc.push_text_undo(self, old, new)
             else:

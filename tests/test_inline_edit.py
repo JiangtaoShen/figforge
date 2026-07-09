@@ -99,7 +99,23 @@ tb.setSelected(True)
 tb.start_inline_edit()
 win.delete_selected()          # menu delete while editing
 app.processEvents()
-check("delete-while-editing safe", tb.scene() is None)
+check("delete-while-editing safe", tb.scene() is None and tb._editor is None)
+
+# undo of Add while the editor is open — same re-entrancy family
+win.add_textbox()
+tb2 = [it for it in win.scene.iter_items() if isinstance(it, TextBoxItem)][-1]
+check("editing right after add", tb2._editor is not None)
+win.undo_stack.undo()          # removes the host while its editor has focus
+app.processEvents()
+check("undo-add-while-editing safe", tb2.scene() is None and tb2._editor is None)
+
+# scene.clear while editing (New Project path)
+win.add_textbox()
+tb3 = [it for it in win.scene.iter_items() if isinstance(it, TextBoxItem)][-1]
+check("editing before clear", tb3._editor is not None)
+win.scene.clear()
+app.processEvents()
+check("clear-while-editing safe", tb3._editor is None)
 
 # ------------------------------------------------------- grid snap exemption
 sc = PageScene()

@@ -83,9 +83,19 @@ class PageScene(QtWidgets.QGraphicsScene):
         self.sceneEdited.emit()
 
     def unregister_item(self, item):
+        # abort (not commit) a live in-place edit first: removing an item
+        # whose child editor holds focus re-enters the scene mid-removal
+        if getattr(item, "_editor", None) is not None:
+            item.finish_inline_edit(commit=False)
         if item.scene() is self:
             self.removeItem(item)
         self.sceneEdited.emit()
+
+    def clear(self):
+        for it in self.items():
+            if getattr(it, "_editor", None) is not None:
+                it.finish_inline_edit(commit=False)
+        super().clear()
 
     def iter_items(self) -> list[CanvasItem]:
         items = [it for it in self.items() if isinstance(it, CanvasItem)]
