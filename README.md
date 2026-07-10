@@ -3,6 +3,8 @@
 **English** | [简体中文](README.zh-CN.md)
 
 [![CI](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml/badge.svg)](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/JiangtaoShen/figforge)](https://github.com/JiangtaoShen/figforge/releases/latest)
 
 ![FigForge — vector-preserving layout for scientific figures](docs/hero.png)
 

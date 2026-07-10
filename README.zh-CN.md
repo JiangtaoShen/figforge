@@ -3,6 +3,8 @@
 [English](README.md) | **简体中文**
 
 [![CI](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml/badge.svg)](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/JiangtaoShen/figforge)](https://github.com/JiangtaoShen/figforge/releases/latest)
 
 ![FigForge —— 面向科研配图的矢量保真排版工具](docs/hero.png)
 
