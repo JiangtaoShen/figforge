@@ -41,8 +41,6 @@ font files (only the glyphs you used), so files with Chinese text stay small.
 
 ## Features
 
-- **Clean, modern UI**: a light Fusion-based theme (soft neutral palette, rounded inputs and
-  panels, a blue accent) that looks the same on Windows, macOS and Linux.
 - **Canvas**: A4 / Letter, portrait / landscape.
 - **Import sub-figures**: PNG, JPG, TIFF, BMP, GIF, WebP (raster); PDF, SVG, EPS, PS (vector).
   Pick the page of a multi-page PDF. **Drag files straight from Explorer into the window** —
@@ -114,8 +112,7 @@ Use a **clean virtual environment** so only the libraries FigForge needs get bun
 py -m venv C:\ffb
 C:\ffb\Scripts\python -m pip install -r requirements.txt pyinstaller
 C:\ffb\Scripts\python -m PyInstaller --noconfirm --windowed ^
-    --icon figforge/resources/icon.ico --add-data "figforge/resources;figforge/resources" ^
-    --exclude-module tkinter --name FigForge run.py
+    --icon figforge/resources/icon.ico --exclude-module tkinter --name FigForge run.py
 ```
 
 The app appears under `dist\FigForge\` (~250 MB); double-click `FigForge.exe`. When moving it

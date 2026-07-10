@@ -37,8 +37,6 @@ python3 run.py
 
 ## 主要功能
 
-- **清爽现代界面**：基于 Fusion 的浅色主题（柔和中性色、圆角输入框与面板、蓝色强调色），
-  在 Windows / macOS / Linux 上外观一致。
 - **画布**：A4 / Letter，纵向 / 横向。
 - **导入子图**：PNG、JPG、TIFF、BMP、GIF、WebP（位图）；PDF、SVG、EPS、PS（矢量）。
   多页 PDF 可选择页码。**可直接把文件从资源管理器拖入窗口**，落点即光标处。
@@ -103,8 +101,7 @@ Python 里无关的大库一起打进去）：
 py -m venv C:\ffb
 C:\ffb\Scripts\python -m pip install -r requirements.txt pyinstaller
 C:\ffb\Scripts\python -m PyInstaller --noconfirm --windowed ^
-    --icon figforge/resources/icon.ico --add-data "figforge/resources;figforge/resources" ^
-    --exclude-module tkinter --name FigForge run.py
+    --icon figforge/resources/icon.ico --exclude-module tkinter --name FigForge run.py
 ```
 
 生成的程序在 `dist\FigForge\` 下（约 250 MB），双击 `FigForge.exe` 即可运行。移动到别的电脑时，
