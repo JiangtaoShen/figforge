@@ -1,10 +1,10 @@
 # FigForge · 论文图排版
 
-<img src="figforge/resources/icon.png" width="96" align="right" alt="FigForge icon">
-
 [English](README.md) | **简体中文**
 
 [![CI](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml/badge.svg)](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml)
+
+![FigForge —— 面向科研配图的矢量保真排版工具](docs/hero.png)
 
 ## [⬇ 下载](https://github.com/JiangtaoShen/figforge/releases/latest)
 

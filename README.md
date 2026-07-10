@@ -1,10 +1,10 @@
 # FigForge
 
-<img src="figforge/resources/icon.png" width="96" align="right" alt="FigForge icon">
-
 **English** | [简体中文](README.zh-CN.md)
 
 [![CI](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml/badge.svg)](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml)
+
+![FigForge — vector-preserving layout for scientific figures](docs/hero.png)
 
 ## [⬇ Download](https://github.com/JiangtaoShen/figforge/releases/latest)
 
