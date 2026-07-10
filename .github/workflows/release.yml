@@ -37,10 +37,15 @@ jobs:
         shell: bash
         run: |
           ICON=""
+          SEP=":"
           if [ "$RUNNER_OS" != "Linux" ]; then
             ICON="--icon figforge/resources/icon.ico"
           fi
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            SEP=";"
+          fi
           python -m PyInstaller --noconfirm --windowed $ICON \
+            --add-data "figforge/resources${SEP}figforge/resources" \
             --exclude-module tkinter --name FigForge run.py
 
       - name: Package (Windows)

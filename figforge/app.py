@@ -8,7 +8,7 @@ import traceback
 
 from PySide6 import QtGui, QtWidgets
 
-from . import constants, i18n
+from . import constants, i18n, style
 from .i18n import tr
 from .main_window import MainWindow
 
@@ -64,6 +64,7 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     app.setApplicationName(constants.APP_NAME)
     app.setOrganizationName(constants.ORG_NAME)
+    style.apply(app)                              # modern Fusion-based theme
     i18n.set_language(i18n.load_saved())          # default English; persists choice
     app.setApplicationDisplayName(tr("FigForge — Academic Figure Layout"))
     icon = _icon_path()
