@@ -6,7 +6,18 @@
 
 [![CI](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml/badge.svg)](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml)
 
-**[⬇ Download for Windows](https://github.com/JiangtaoShen/figforge/releases/latest)** — no Python needed. Pick either the **installer** (`…-setup.exe`: Start-Menu entry, uninstaller, double-click `.ffp` files to open them) or the **portable zip** (unzip and run `FigForge.exe`).
+## [⬇ Download](https://github.com/JiangtaoShen/figforge/releases/latest)
+
+Prebuilt bundles for every platform — **no Python needed**:
+
+| Platform | Download | Notes |
+|---|---|---|
+| **Windows** | `…-windows-x64-setup.exe` | Installer: Start-Menu entry, uninstaller, double-click `.ffp` files to open them |
+| **Windows** | `…-windows-x64.zip` | Portable: unzip and run `FigForge.exe` |
+| **macOS** (Apple Silicon) | `…-macos-arm64.zip` | Unzip and run `FigForge.app` |
+| **Linux** (x64) | `…-linux-x64.tar.gz` | Extract and run `FigForge/FigForge` |
+
+> First launch on Windows may show a SmartScreen prompt (the app isn't code-signed yet) — click **More info → Run anyway**. On macOS, right-click the app → **Open** the first time.
 
 A lightweight, **vector-preserving** layout tool for academic figures — a trimmed-down
 "graphic design" app focused on one job: arranging several sub-figures into a Nature-style

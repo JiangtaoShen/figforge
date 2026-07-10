@@ -6,7 +6,18 @@
 
 [![CI](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml/badge.svg)](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml)
 
-**[⬇ Windows 版下载](https://github.com/JiangtaoShen/figforge/releases/latest)** —— 无需安装 Python。可选**安装版**（`…-setup.exe`：开始菜单快捷方式、正规卸载、双击 `.ffp` 工程文件直接打开）或**绿色 zip 版**（解压即用）。
+## [⬇ 下载](https://github.com/JiangtaoShen/figforge/releases/latest)
+
+各平台预编译版，**无需安装 Python**：
+
+| 平台 | 下载 | 说明 |
+|---|---|---|
+| **Windows** | `…-windows-x64-setup.exe` | 安装版：开始菜单快捷方式、正规卸载、双击 `.ffp` 工程直接打开 |
+| **Windows** | `…-windows-x64.zip` | 绿色版：解压后运行 `FigForge.exe` |
+| **macOS**（Apple 芯片） | `…-macos-arm64.zip` | 解压后运行 `FigForge.app` |
+| **Linux**（x64） | `…-linux-x64.tar.gz` | 解压后运行 `FigForge/FigForge` |
+
+> Windows 首次运行可能出现 SmartScreen 提示（尚未代码签名）——点**更多信息 → 仍要运行**。macOS 首次打开请右键 App →**打开**。
 
 一个面向学术论文的**轻量图排版工具**（专业平面设计软件的精简版），用于把多张子图拼成
 Nature 风格的多面板大图、手动标注编号（a / b / c…），并导出**印刷级 PDF（矢量保真）**
