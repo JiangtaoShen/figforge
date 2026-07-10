@@ -119,6 +119,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._update_title()
         QtCore.QTimer.singleShot(0, self.view.fit_page)
 
+        self._skip_restore = False     # set when launched with a .ffp argument
         self._last_autosave_idx = -1
         self._autosave_timer = QtCore.QTimer(self)
         self._autosave_timer.setInterval(constants.AUTOSAVE_INTERVAL_MS)
@@ -1160,6 +1161,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _offer_restore(self):
         """On startup: a leftover autosave means the last session crashed."""
+        if self._skip_restore:         # opening an explicit file; keep the
+            return                     # snapshot for the next plain launch
         pending = self._pending_autosave()
         if pending is None:
             return

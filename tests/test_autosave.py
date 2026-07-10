@@ -126,6 +126,28 @@ check("hook informs the user", len(shown) == 1 and "error.log" in shown[0],
       str(shown))
 win3._clear_autosave()
 
+# ------------------------------------- .ffp argv (file association) helpers
+from figforge.app import _project_arg  # noqa: E402
+
+assoc = os.path.join(tmp, "assoc.ffp")
+open(assoc, "wb").write(b"x")           # existence is all _project_arg checks
+check("argv: picks the .ffp", _project_arg(["exe", assoc]) == assoc)
+check("argv: ignores missing / non-ffp",
+      _project_arg(["exe", "missing.ffp", "readme.txt"]) is None)
+
+win3.rescue_autosave()                  # a pending snapshot exists
+win3._skip_restore = True               # launched with an explicit file
+asked = []
+orig_q = QtWidgets.QMessageBox.question
+QtWidgets.QMessageBox.question = \
+    lambda *a, **k: (asked.append(1), QtWidgets.QMessageBox.StandardButton.No)[1]
+win3._offer_restore()
+QtWidgets.QMessageBox.question = orig_q
+check("skip-restore: no prompt, snapshot kept",
+      not asked and win3._pending_autosave() is not None)
+win3._skip_restore = False
+win3._clear_autosave()
+
 for w in (win, win2, win3):
     try:
         w.undo_stack.cleanChanged.disconnect()

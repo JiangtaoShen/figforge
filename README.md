@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml/badge.svg)](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml)
 
-**[⬇ Download for Windows (v0.2.0)](https://github.com/JiangtaoShen/figforge/releases/latest)** — unzip and run `FigForge.exe`, no Python needed.
+**[⬇ Download for Windows](https://github.com/JiangtaoShen/figforge/releases/latest)** — no Python needed. Pick either the **installer** (`…-setup.exe`: Start-Menu entry, uninstaller, double-click `.ffp` files to open them) or the **portable zip** (unzip and run `FigForge.exe`).
 
 A lightweight, **vector-preserving** layout tool for academic figures — a trimmed-down
 "graphic design" app focused on one job: arranging several sub-figures into a Nature-style
@@ -119,6 +119,15 @@ C:\ffb\Scripts\python -m PyInstaller --noconfirm --windowed ^
 The app appears under `dist\FigForge\` (~250 MB); double-click `FigForge.exe`. When moving it
 to another machine, copy the **whole `FigForge` folder** (the `_internal` folder holds the
 runtime). The same commands with `python3` produce a native bundle on macOS / Linux.
+
+To also build the Windows **installer** (Start-Menu entry, uninstaller, `.ffp` association),
+install [Inno Setup 6](https://jrsoftware.org/isinfo.php) and run:
+
+```bat
+iscc /DMyAppVersion=0.3.0 installer\FigForge.iss
+```
+
+Release tags (`v*`) build and attach both the zip and the installer automatically via CI.
 
 ## Project layout
 

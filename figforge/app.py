@@ -6,7 +6,7 @@ import sys
 import time
 import traceback
 
-from PySide6 import QtGui, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from . import constants, i18n
 from .i18n import tr
@@ -15,6 +15,14 @@ from .main_window import MainWindow
 
 def _icon_path() -> str:
     return os.path.join(os.path.dirname(__file__), "resources", "icon.ico")
+
+
+def _project_arg(argv: list[str]) -> str | None:
+    """First existing .ffp path on the command line (file association)."""
+    for a in argv[1:]:
+        if a.lower().endswith(constants.PROJECT_EXT) and os.path.isfile(a):
+            return a
+    return None
 
 
 def install_excepthook(win: MainWindow) -> None:
@@ -72,6 +80,10 @@ def main():
 
     win = MainWindow()
     install_excepthook(win)
+    proj = _project_arg(sys.argv)
+    if proj:                       # launched by double-clicking a .ffp file
+        win._skip_restore = True   # don't fight the explicit open
+        QtCore.QTimer.singleShot(0, lambda: win._load_project_path(proj))
     win.show()
     sys.exit(app.exec())
 

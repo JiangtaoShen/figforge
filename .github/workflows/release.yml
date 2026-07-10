@@ -55,6 +55,15 @@ jobs:
           Compress-Archive -Path dist/FigForge
           -DestinationPath "FigForge-${{ github.ref_name }}-windows-x64.zip"
 
+      - name: Installer (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ver = "${{ github.ref_name }}".TrimStart("v")
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            /DMyAppVersion=$ver installer\FigForge.iss
+          Get-Item FigForge-*-setup.exe | ForEach-Object { $_.Name }
+
       - name: Package (macOS)
         if: runner.os == 'macOS'
         run: |
@@ -71,6 +80,7 @@ jobs:
           path: |
             FigForge-*.zip
             FigForge-*.tar.gz
+            FigForge-*-setup.exe
 
   release:
     needs: build
@@ -85,4 +95,6 @@ jobs:
           files: |
             FigForge-*.zip
             FigForge-*.tar.gz
+            FigForge-*-setup.exe
+          generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}

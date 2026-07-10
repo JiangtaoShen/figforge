@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml/badge.svg)](https://github.com/JiangtaoShen/figforge/actions/workflows/ci.yml)
 
-**[⬇ Windows 版下载（v0.2.0）](https://github.com/JiangtaoShen/figforge/releases/latest)** —— 解压后双击 `FigForge.exe`，无需安装 Python。
+**[⬇ Windows 版下载](https://github.com/JiangtaoShen/figforge/releases/latest)** —— 无需安装 Python。可选**安装版**（`…-setup.exe`：开始菜单快捷方式、正规卸载、双击 `.ffp` 工程文件直接打开）或**绿色 zip 版**（解压即用）。
 
 一个面向学术论文的**轻量图排版工具**（专业平面设计软件的精简版），用于把多张子图拼成
 Nature 风格的多面板大图、手动标注编号（a / b / c…），并导出**印刷级 PDF（矢量保真）**
@@ -108,6 +108,15 @@ C:\ffb\Scripts\python -m PyInstaller --noconfirm --windowed ^
 生成的程序在 `dist\FigForge\` 下（约 250 MB），双击 `FigForge.exe` 即可运行。移动到别的电脑时，
 请把**整个 `FigForge` 文件夹**一起复制（`_internal` 文件夹是运行库）。在 macOS / Linux 上用
 `python3` 执行同样的命令，即可得到对应平台的原生程序。
+
+如需同时生成 Windows **安装包**（开始菜单、卸载项、`.ffp` 关联），安装
+[Inno Setup 6](https://jrsoftware.org/isinfo.php) 后执行：
+
+```bat
+iscc /DMyAppVersion=0.3.0 installer\FigForge.iss
+```
+
+推送 `v*` 标签时，CI 会自动构建 zip 与安装包并挂到 Release。
 
 ## 代码结构
 
