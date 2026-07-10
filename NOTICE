@@ -1,0 +1,27 @@
+FigForge
+Copyright 2026 Jiangtao Shen
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+--------------------------------------------------------------------------------
+Third-party components
+--------------------------------------------------------------------------------
+
+The prebuilt FigForge downloads (installer / zip / tar.gz) bundle the following
+components under their own licenses. Source-only use (running `python run.py`)
+installs these from PyPI instead of bundling them.
+
+- PySide6 / Qt for Python — GNU Lesser General Public License v3 (LGPLv3).
+  Qt is a trademark of The Qt Company Ltd. FigForge links to Qt dynamically;
+  you may relink the application against a modified compatible Qt as permitted
+  by the LGPLv3. https://www.qt.io/licensing  https://www.gnu.org/licenses/lgpl-3.0.html
+
+- PyMuPDF (bindings) and MuPDF — GNU Affero General Public License v3 (AGPLv3),
+  or a commercial license from Artifex. https://pymupdf.readthedocs.io/en/latest/about.html#license-and-copyright
+
+- Pillow — MIT-CMU License. https://github.com/python-pillow/Pillow/blob/main/LICENSE
+
+- fontTools — MIT License. https://github.com/fonttools/fonttools/blob/main/LICENSE
+
+Fonts embedded in exported PDFs come from the user's own system font files and
+are not distributed with FigForge.

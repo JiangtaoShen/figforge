@@ -171,3 +171,13 @@ PyMuPDF pipeline that is the single source of truth: vector sub-figures are plac
 `show_pdf_page` (stay vector), rasters are embedded full-res, labels are written as PDF text;
 rotation/crop go through an intermediate page so they remain vector too. PNG/TIFF are then
 rasterised from that exact PDF, so every format matches pixel-for-pixel.
+
+## License
+
+FigForge's own code is released under the **[Apache License 2.0](LICENSE)** — free to use,
+modify and redistribute (including commercially), just keep the copyright and license notice.
+
+Third-party components bundled in the prebuilt downloads keep their own licenses (see
+[NOTICE](NOTICE)): Qt/PySide6 (LGPLv3), PyMuPDF/MuPDF (AGPLv3 or commercial), Pillow and
+fontTools (MIT). Because the packaged binaries embed AGPL-licensed PyMuPDF, the complete
+corresponding source is made available here — running from source pulls these from PyPI instead.

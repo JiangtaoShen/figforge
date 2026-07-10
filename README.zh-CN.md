@@ -159,3 +159,12 @@ run.py
 真源：矢量子图用 `show_pdf_page` 嵌入（保持矢量）、位图按原分辨率嵌入、文字写成 PDF 矢量
 文字；旋转 / 裁剪经过一个中间页处理后同样保持矢量。PNG / TIFF 再由这份 PDF 高 DPI 栅格化得到，
 因此各格式像素级一致。
+
+## 许可证
+
+FigForge 自身代码采用 **[Apache License 2.0](LICENSE)** —— 可自由使用、修改、再分发（含商用），
+只需保留版权与许可声明。
+
+预编译下载包内嵌的第三方组件保留各自许可证（详见 [NOTICE](NOTICE)）：Qt/PySide6（LGPLv3）、
+PyMuPDF/MuPDF（AGPLv3 或商业授权）、Pillow 与 fontTools（MIT）。由于打包版内嵌了 AGPL 许可的
+PyMuPDF，完整对应源码即在本仓库公开；从源码运行则改为从 PyPI 安装这些依赖。
