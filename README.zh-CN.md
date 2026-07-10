@@ -101,7 +101,8 @@ Python 里无关的大库一起打进去）：
 py -m venv C:\ffb
 C:\ffb\Scripts\python -m pip install -r requirements.txt pyinstaller
 C:\ffb\Scripts\python -m PyInstaller --noconfirm --windowed ^
-    --icon figforge/resources/icon.ico --exclude-module tkinter --name FigForge run.py
+    --icon figforge/resources/icon.ico --add-data "figforge/resources;figforge/resources" ^
+    --exclude-module tkinter --name FigForge run.py
 ```
 
 生成的程序在 `dist\FigForge\` 下（约 250 MB），双击 `FigForge.exe` 即可运行。移动到别的电脑时，

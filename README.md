@@ -112,7 +112,8 @@ Use a **clean virtual environment** so only the libraries FigForge needs get bun
 py -m venv C:\ffb
 C:\ffb\Scripts\python -m pip install -r requirements.txt pyinstaller
 C:\ffb\Scripts\python -m PyInstaller --noconfirm --windowed ^
-    --icon figforge/resources/icon.ico --exclude-module tkinter --name FigForge run.py
+    --icon figforge/resources/icon.ico --add-data "figforge/resources;figforge/resources" ^
+    --exclude-module tkinter --name FigForge run.py
 ```
 
 The app appears under `dist\FigForge\` (~250 MB); double-click `FigForge.exe`. When moving it
