@@ -12,6 +12,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20      # a hung modal dialog must fail fast, not sit 6 h
     steps:
       - uses: actions/checkout@v4
 

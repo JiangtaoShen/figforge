@@ -14,8 +14,9 @@ dist/
 *.spec
 *.manifest
 
-# FigForge project files (user data)
+# FigForge project files (user data) — but keep the bundled sample
 *.ffp
+!figforge/resources/sample.ffp
 
 # OS / editors
 .DS_Store

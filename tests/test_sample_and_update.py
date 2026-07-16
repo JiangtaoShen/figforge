@@ -14,6 +14,23 @@ from PySide6 import QtWidgets  # noqa: E402
 
 app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
+# Never let a stray modal dialog hang a headless run: auto-answer them all
+# and surface the message as a test failure instead.
+_dialogs = []
+
+
+def _auto(kind):
+    def fn(*a, **k):
+        _dialogs.append(f"{kind}: {a[2] if len(a) > 2 else a}")
+        return QtWidgets.QMessageBox.StandardButton.No
+    return staticmethod(fn)
+
+
+QtWidgets.QMessageBox.information = _auto("info")
+QtWidgets.QMessageBox.warning = _auto("warning")
+QtWidgets.QMessageBox.critical = _auto("critical")
+QtWidgets.QMessageBox.question = _auto("question")
+
 from figforge.main_window import MainWindow  # noqa: E402
 from figforge.canvas.items import (FigureItem, LabelItem, LineItem,  # noqa: E402
                                    TextBoxItem)
@@ -114,6 +131,8 @@ check("checker emits updateAvailable for newer tag", got == ["v9.9.9"], str(got)
 win._auto_update_check()
 check("auto-check gated in tests", not hasattr(win, "_upd")
       and not win.lbl_update.isVisible())
+
+check("no unexpected dialogs popped", not _dialogs, str(_dialogs))
 
 win.undo_stack.cleanChanged.disconnect()
 n_fail = sum(1 for ok in results if not ok)
