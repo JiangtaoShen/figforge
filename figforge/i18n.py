@@ -21,6 +21,7 @@ _ZH = {
     # file
     "New": "新建", "Open…": "打开…", "Save": "保存", "Save As…": "另存为…",
     "Open Recent": "最近打开", "Clear Menu": "清空列表", "(empty)": "（空）",
+    "Open Sample Project": "打开示例工程",
     "File not found: {0}": "文件不存在：{0}",
     "Import Images…": "导入图片…",
     "Export PDF (vector)…": "导出 PDF（矢量）…",
@@ -52,6 +53,13 @@ _ZH = {
     "Actual Size 100%": "实际大小 100%",
     # help
     "User Guide": "使用说明", "About": "关于",
+    "Check for Updates…": "检查更新…", "Check for Updates": "检查更新",
+    "You're on the latest version ({0}).": "当前已是最新版本（{0}）。",
+    "Could not check for updates:\n{0}": "检查更新失败：\n{0}",
+    "New version {0} is available. Open the download page?":
+        "发现新版本 {0}，打开下载页面吗？",
+    '<a href="{0}">New version {1} available — click to download</a>':
+        '<a href="{0}">发现新版本 {1} —— 点击下载</a>',
     # toolbars / page bar
     "Main Toolbar": "主工具栏", "Page": "页面", " Paper ": " 纸张 ",
     "Portrait": "纵向", "Landscape": "横向", "Grid": "网格", "Smart Snap": "智能吸附",

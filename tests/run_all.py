@@ -18,6 +18,7 @@ SCRIPTS = sorted(f for f in os.listdir(HERE)
 ENV = dict(os.environ)
 ENV.setdefault("FIGFORGE_AUTOSAVE_DIR",
                tempfile.mkdtemp(prefix="ff_test_autosave_"))
+ENV.setdefault("FIGFORGE_NO_UPDATE_CHECK", "1")   # suites stay offline
 # C-level traceback if a Qt call segfaults (kept on: invaluable for the
 # macOS use-after-free crashes that have no Python traceback)
 ENV.setdefault("PYTHONFAULTHANDLER", "1")

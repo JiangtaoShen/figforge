@@ -126,6 +126,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._autosave_timer.timeout.connect(self._do_autosave)
         self._autosave_timer.start()
         QtCore.QTimer.singleShot(0, self._offer_restore)
+        QtCore.QTimer.singleShot(3500, self._auto_update_check)
 
     # ------------------------------------------------------------------ docks
     def _build_docks(self):
@@ -161,6 +162,9 @@ class MainWindow(QtWidgets.QMainWindow):
         QKS = QtGui.QKeySequence
         self.a_new = self._act(tr("New"), self.new_project, QKS.StandardKey.New)
         self.a_open = self._act(tr("Open…"), self.open_project, QKS.StandardKey.Open)
+        self.a_sample = self._act(tr("Open Sample Project"), self.open_sample)
+        self.a_check_upd = self._act(tr("Check for Updates…"),
+                                     lambda: self._start_update_check(manual=True))
         self.a_save = self._act(tr("Save"), self.save_project, QKS.StandardKey.Save)
         self.a_save_as = self._act(tr("Save As…"), self.save_project_as, QKS.StandardKey.SaveAs)
         self.a_import = self._act(tr("Import Images…"), self.import_figures, "Ctrl+I")
@@ -236,6 +240,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.m_recent = m.addMenu(tr("Open Recent"))
         self.m_recent.setToolTipsVisible(True)
         self.m_recent.aboutToShow.connect(self._rebuild_recent_menu)
+        m.addAction(self.a_sample)
         m.addActions([self.a_save, self.a_save_as])
         m.addSeparator()
         m.addAction(self.a_import)
@@ -290,6 +295,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         m = mb.addMenu(tr("Help"))
         m.addAction(self._act(tr("User Guide"), self.show_help))
+        m.addAction(self.a_check_upd)
         m.addAction(self._act(tr("About"), self.show_about))
 
     def _build_toolbars(self):
@@ -336,9 +342,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def _build_statusbar(self):
         sb = self.statusBar()
         self.lbl_pos = QtWidgets.QLabel("X: -  Y: -")
+        self.lbl_update = QtWidgets.QLabel("")
+        self.lbl_update.setOpenExternalLinks(True)
+        self.lbl_update.setVisible(False)
         self.lbl_page = QtWidgets.QLabel("")
         self.lbl_zoom = QtWidgets.QLabel(tr("Zoom {0}%").format(100))
         sb.addWidget(self.lbl_pos)
+        sb.addPermanentWidget(self.lbl_update)
         sb.addPermanentWidget(self.lbl_page)
         sb.addPermanentWidget(self.lbl_zoom)
         self._update_page_label()
@@ -1039,6 +1049,70 @@ class MainWindow(QtWidgets.QMainWindow):
             self._remove_recent(path)
             return
         self._load_project_path(path)
+
+    def open_sample(self):
+        """Open the bundled sample figure as an untitled project."""
+        if not self._confirm_discard():
+            return
+        path = os.path.join(os.path.dirname(__file__), "resources", "sample.ffp")
+        if not os.path.isfile(path):
+            QtWidgets.QMessageBox.warning(self, tr("Open Failed"),
+                                          tr("File not found: {0}").format(path))
+            return
+        try:
+            config, items, tempdir = project.load_project(path)
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, tr("Open Failed"), str(e))
+            return
+        self._apply_loaded_project(config, items, tempdir)
+        self.current_path = None       # a scratch copy, never the bundled file
+        self._extra_dirty = False
+        self._clear_autosave()
+        self._update_title()
+
+    # -------------------------------------------------------- update check
+    def _auto_update_check(self):
+        if os.environ.get("FIGFORGE_NO_UPDATE_CHECK"):
+            return
+        if QtWidgets.QApplication.platformName() == "offscreen":
+            return                     # headless test/CI runs stay offline
+        s = self._settings()
+        last = float(s.value("update/last_check", 0) or 0)
+        if time.time() - last < 24 * 3600:
+            return
+        s.setValue("update/last_check", time.time())
+        self._start_update_check(manual=False)
+
+    def _start_update_check(self, manual: bool):
+        from . import __version__
+        from .update_check import UpdateChecker
+        self._upd = UpdateChecker(self)
+        self._upd.updateAvailable.connect(
+            lambda tag: self._on_update_available(tag, manual))
+        if manual:
+            self._upd.upToDate.connect(lambda: QtWidgets.QMessageBox.information(
+                self, tr("Check for Updates"),
+                tr("You're on the latest version ({0}).").format(__version__)))
+            self._upd.failed.connect(lambda err: QtWidgets.QMessageBox.warning(
+                self, tr("Check for Updates"),
+                tr("Could not check for updates:\n{0}").format(err)))
+        self._upd.check(__version__)
+
+    def _on_update_available(self, tag: str, manual: bool):
+        from .update_check import RELEASES_URL
+        self.lbl_update.setText(
+            tr('<a href="{0}">New version {1} available — click to '
+               'download</a>').format(RELEASES_URL, tag))
+        self.lbl_update.setVisible(True)
+        if manual:
+            r = QtWidgets.QMessageBox.question(
+                self, tr("Check for Updates"),
+                tr("New version {0} is available. Open the download "
+                   "page?").format(tag),
+                QtWidgets.QMessageBox.StandardButton.Yes
+                | QtWidgets.QMessageBox.StandardButton.No)
+            if r == QtWidgets.QMessageBox.StandardButton.Yes:
+                QtGui.QDesktopServices.openUrl(QtCore.QUrl(RELEASES_URL))
 
     def _load_project_path(self, path):
         try:

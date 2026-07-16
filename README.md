@@ -21,6 +21,12 @@ Prebuilt bundles for every platform — **no Python needed**:
 
 > First launch on Windows may show a SmartScreen prompt (the app isn't code-signed yet) — click **More info → Run anyway**. On macOS, right-click the app → **Open** the first time.
 
+## Quick look
+
+![Import panels, arrange them in a grid, label and annotate — in seconds](docs/demo.gif)
+
+Want to poke around immediately? **File → Open Sample Project** loads this exact figure.
+
 A lightweight, **vector-preserving** layout tool for academic figures — a trimmed-down
 "graphic design" app focused on one job: arranging several sub-figures into a Nature-style
 multi-panel figure on an A4 / Letter page, labelling panels by hand, and exporting
@@ -96,6 +102,9 @@ font files (only the glyphs you used), so files with Chinese text stay small.
 - **Autosave & crash recovery**: unsaved work is snapshotted every 2 minutes; if FigForge (or
   the machine) dies, the next launch offers to restore it. Internal errors are logged and
   trigger an immediate rescue snapshot instead of losing your layout.
+- **Sample project**: File → Open Sample Project loads a ready-made labelled figure to poke at.
+- **Update notice**: a quiet, at most once-a-day check of the latest GitHub release; a status-bar
+  link appears when a newer version exists (or use Help → Check for Updates).
 - Full undo / redo.
 
 ## Shortcuts
@@ -137,7 +146,7 @@ To also build the Windows **installer** (Start-Menu entry, uninstaller, `.ffp` a
 install [Inno Setup 6](https://jrsoftware.org/isinfo.php) and run:
 
 ```bat
-iscc /DMyAppVersion=0.3.0 installer\FigForge.iss
+iscc /DMyAppVersion=0.3.1 installer\FigForge.iss
 ```
 
 Release tags (`v*`) build and attach both the zip and the installer automatically via CI.
